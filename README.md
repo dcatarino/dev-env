@@ -1,6 +1,6 @@
 # my-skills
 
-Personal skills repository, shared between **Claude Code** and **Codex**.
+Personal skills repository, shared between **Claude Code**, **Codex**, and **Cursor**.
 
 ## Layout
 
@@ -20,9 +20,10 @@ Clone the repo and run:
 bash setup.sh
 ```
 
-This finds every `SKILL.md` and symlinks its folder into both tools' skill directories:
+This finds every `SKILL.md` and symlinks it into each tool's skills/rules directory:
 
-- Claude → `~/.claude/skills/<name>/`
-- Codex  → `~/.agents/skills/<name>/`
+- Claude  → `~/.claude/skills/<name>/` (folder symlink)
+- Codex   → `~/.agents/skills/<name>/` (folder symlink)
+- Cursor  → `~/.cursor/rules/<name>.md` (file symlink to `SKILL.md`)
 
-Symlinks (not copies) are used, so edits in this repo are picked up by both tools immediately. Re-run `setup.sh` after adding a new skill.
+Symlinks (not copies) are used, so edits in this repo are picked up by all tools immediately. Re-run `setup.sh` after adding a new skill.

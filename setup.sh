@@ -6,7 +6,7 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$HOME/.claude/skills"
 CODEX_DIR="$HOME/.agents/skills"
-CURSOR_DIR="$HOME/.cursor/rules"
+CURSOR_DIR="$HOME/.cursor/skills"
 
 mkdir -p "$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR"
 
@@ -15,12 +15,10 @@ find "$REPO" -name SKILL.md -not -path '*/.git/*' | while read -r skill; do
   dir="$(dirname "$skill")"
   name="$(basename "$dir")"
 
-  # Claude Code and Codex use a folder-per-skill layout; symlink for live updates.
+  # All three tools use a folder-per-skill layout; symlink for live updates.
   ln -sfn "$dir" "$CLAUDE_DIR/$name"
   ln -sfn "$dir" "$CODEX_DIR/$name"
-
-  # Cursor uses individual rule files in ~/.cursor/rules/; symlink SKILL.md directly.
-  ln -sfn "$skill" "$CURSOR_DIR/$name.md"
+  ln -sfn "$dir" "$CURSOR_DIR/$name"
 
   echo "installed: $name"
 done

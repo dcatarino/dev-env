@@ -24,6 +24,6 @@ This finds every `SKILL.md` and symlinks it into each tool's skills/rules direct
 
 - Claude  → `~/.claude/skills/<name>/` (folder symlink)
 - Codex   → `~/.agents/skills/<name>/` (folder symlink)
-- Cursor  → `~/.cursor/rules/<name>.md` (file symlink to `SKILL.md`)
+- Cursor  → `~/.cursor/skills/<name>/` (folder symlink)
 
 Symlinks (not copies) are used, so edits in this repo are picked up by all tools immediately. Re-run `setup.sh` after adding a new skill.

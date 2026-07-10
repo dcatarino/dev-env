@@ -28,13 +28,13 @@ works — e.g. plain per-instance config parameters over shared clever ones.
 ## Guardrails
 
 - Never edit `/workspaces/odoo` or `/workspaces/360_community`.
-- Before committing, verify the checked-out branch's identifier matches the
-  task you are committing (don't commit task-13310 work while on
-  `18.0-task-14435`). On a mismatch, stop and ask.
+- Before committing, check the branch's identifier against the commit's and
+  flag mismatches (policy in the `odoo-commit` skill).
 - External APIs: verify, don't assume. Never design around an external-API
   capability (field, endpoint, webhook) without confirming it exists in the
   official docs or the existing connector code.
-- Never hardcode credentials; use the nexus secrets abstraction.
+- Never hardcode credentials or secrets (in the integration repos, use the
+  nexus secrets abstraction — see `odoo-integrations`).
 - Never probe git credential helpers, git config, or the environment for
   tokens. For push/PR auth, follow the `odoo-pr` skill.
 
@@ -81,7 +81,7 @@ Pre-commit validation is part of the commit workflow; see the `odoo-commit` skil
 
 - Do not commit changes unless the user explicitly asks you to commit. When asked, follow the `odoo-commit` skill.
 - Do not create staging branches, or create/rename any branch, unless the user explicitly asks. When asked, follow the `odoo-staging-branch` skill.
-- Do not push or open pull requests unless the user explicitly asks. When asked, follow the `odoo-pr` skill.
+- Do not push or open pull requests unless the user explicitly asks. When asked, follow the `odoo-pr` skill (staging-branch pushes are covered by `odoo-staging-branch` instead).
 
 ## Final Response After Implementation
 

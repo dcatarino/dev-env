@@ -1,7 +1,7 @@
 ---
 name: odoo-pr
 description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with a /run-tests comment, and the GitHub auth model (org token vs personal repos).
-version: 1.0.2
+version: 1.0.3
 ---
 
 # Open a pull request
@@ -17,9 +17,9 @@ Never push or open PRs on your own initiative.
 - Use the `gh` CLI (installed at `/usr/bin/gh`) — do not fall back to raw
   GitHub REST calls.
 
-## Create the PR
+## Create the PR — 360ERP org repos
 
-PRs for the 360ERP repos target the Odoo version branch, normally `18.0`:
+PRs target the Odoo version branch, normally `18.0`:
 
 ```bash
 git push -u origin <feature_branch>
@@ -32,13 +32,17 @@ gh pr create --base 18.0 \
   module(s), concise description.
 - The body briefly says what changed, why, and how it was validated.
 
-## Trigger CI
-
-After opening a PR on a 360ERP repo, comment to start the test pipeline:
+After opening the PR, comment to start the test pipeline:
 
 ```bash
 gh pr comment <pr_number> --body "/run-tests"
 ```
+
+## Create the PR — personal repos (e.g. `dcatarino/*`)
+
+PRs target `main`, use a plain descriptive title (no `[task-XXXX]` prefix,
+no task identifier needed), and there is no `/run-tests` pipeline — skip the
+CI comment. See the auth notes below for pushing.
 
 ## Auth model
 

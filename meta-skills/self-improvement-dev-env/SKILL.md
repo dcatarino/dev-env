@@ -20,11 +20,16 @@ evidence from recent sessions. The three goals, in order:
 
 ## Step 1 — Mine recent session history
 
-Bound the window to sessions since the last self-improvement:
+Bound the window to sessions since the last self-improvement run — find the
+previous self-improvement commit by its message (not just the latest commit,
+which may be unrelated):
 
 ```bash
-git -C /workspaces/dev-env log -1 --format=%ci
+git -C /workspaces/dev-env log --oneline -15
 ```
+
+If no prior self-improvement commit is identifiable, ask the user which window
+to mine (or default to the last two weeks).
 
 Sources (transcripts are large — **never read them fully in the main
 context**; spawn Explore/general-purpose subagents that grep/jq-sample them
@@ -84,7 +89,9 @@ adding a skill.
 - Re-run `remote-codespace-setup.sh`; confirm every symlink resolves and new
   skills appear in `~/.claude/skills/`.
 - Read each edited file end-to-end: valid frontmatter, no stray tool markup
-  (`grep -rn "</invoke>\|</content>" .` must be empty), versions bumped.
+  (`grep -rn "</invoke[>]\|</content[>]" --exclude-dir=.git .` must be empty —
+  the bracketed pattern keeps the check from matching itself), versions
+  bumped.
 - `bash -n` any touched shell script.
 
 ## Step 6 — Commit and PR (dev-env-specific — differs from Odoo work)
@@ -96,20 +103,10 @@ apply here:
   a `Co-Authored-By` trailer naming the model (opposite of the Odoo rule).
 - Work on a feature branch off `main`; the PR targets `main`.
 
-**Push/PR auth**: unlike the 360ERP org repos (where the injected Codespaces
-token just works), `dcatarino/dev-env` is a personal repo — the injected
-`GITHUB_TOKEN` is read-only and pushes fail with `403`. Check
-`gh auth status`; if a stored account exists from an earlier `gh auth login`,
-bypass the injected token:
-
-```bash
-GITHUB_TOKEN= GH_TOKEN= git -c credential.helper= \
-  -c credential.helper='!gh auth git-credential' push -u origin <branch>
-GITHUB_TOKEN= GH_TOKEN= gh pr create --base main --title "..." --body "..."
-```
-
-Only if no stored login exists, ask the user to type `! gh auth login --web`,
-then retry. Never probe credential helpers or extract tokens.
+**Push/PR auth**: `dcatarino/dev-env` is a personal repo — follow the
+personal-repos section of the `odoo-pr` skill (bypass the injected read-only
+token with the stored `gh` login; interactive `gh auth login --web` only if
+none exists; never probe credential helpers).
 
 **Leave the feature branch checked out** until the PR merges: the installed
 symlinks point into this checkout, so switching back to `main` before the

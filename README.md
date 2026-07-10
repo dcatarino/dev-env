@@ -1,4 +1,4 @@
-# my-skills
+# dev-env
 
 Personal skills repository, shared between **Claude Code**, **Codex**, and **Cursor**.
 

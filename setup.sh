@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install all skills + the Odoo agent instructions for Claude Code, Codex, and Cursor.
+# Install shared development helpers, skills, and agent instructions.
 # Usage:  bash setup.sh [project_dir]
 #   project_dir (optional): an Odoo project to receive a Cursor .cursor/rules rule.
 set -euo pipefail
@@ -8,10 +8,16 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="$HOME/.claude/skills"
 CODEX_DIR="$HOME/.agents/skills"
 CURSOR_DIR="$HOME/.cursor/skills"
+LOCAL_BIN="$HOME/.local/bin"
 INSTRUCTIONS="$REPO/odoo-agent.md"
+OPEN_CODESPACE="$REPO/open-codespace"
 PROJECT_DIR="${1:-}"
 
-mkdir -p "$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR"
+mkdir -p "$CLAUDE_DIR" "$CODEX_DIR" "$CURSOR_DIR" "$LOCAL_BIN"
+
+# Keep the command linked to this checkout so pulling dev-env updates it.
+ln -sfn "$OPEN_CODESPACE" "$LOCAL_BIN/open-codespace"
+echo "installed: $LOCAL_BIN/open-codespace"
 
 # Every directory that contains a SKILL.md is a skill.
 find "$REPO" -name SKILL.md -not -path '*/.git/*' | while read -r skill; do

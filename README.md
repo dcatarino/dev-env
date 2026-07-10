@@ -1,23 +1,68 @@
 # dev-env
 
-Personal skills repository, shared between **Claude Code**, **Codex**, and **Cursor**.
+Personal development environment shared between **Claude Code**, **Codex**, and
+**Cursor**. It contains reusable agent skills, shared instructions, and local
+development helpers.
+
+## Setup
+
+Clone the repository and run:
+
+```bash
+git clone https://github.com/dcatarino/dev-env
+bash dev-env/setup.sh
+```
+
+`setup.sh` installs the shared skills and instructions, then symlinks the
+`open-codespace` helper into `~/.local/bin`.
+
+## Open a Codespace in Cursor
+
+Run from any local directory:
+
+```bash
+open-codespace
+```
+
+The helper lets you select a GitHub Codespace, refreshes its dedicated SSH
+configuration, and opens a temporary Cursor multi-root workspace containing
+both `/workspaces/<repository>` and `/workspaces`. It does not modify the
+selected repository.
+
+After Cursor is launched, a detached bootstrap installs missing tools in this
+order:
+
+1. Claude Code
+2. NVM and Node.js 22
+3. Codex
+4. This `dev-env` repository and its shared setup
+
+Follow the background bootstrap from a Codespace terminal with:
+
+```bash
+tail -f /tmp/open-codespace-bootstrap.log
+```
+
+Pass a Codespace name to skip the selector:
+
+```bash
+open-codespace CODESPACE_NAME
+```
 
 ## Layout
 
-Skills are grouped into category folders, with one folder per skill containing a `SKILL.md`:
+- `open-codespace` — local Cursor/GitHub Codespaces launcher and remote bootstrap.
+- `setup.sh` — installs all helpers, skills, and shared instructions.
+- `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
+- `<category>/<skill-name>/SKILL.md` — reusable agent skills.
+
+Skills are grouped into category folders, with one folder per skill containing
+a `SKILL.md`:
 
 ```
 <category>/
 └── <skill-name>/
     └── SKILL.md
-```
-
-## Setup
-
-Clone the repo and run:
-
-```bash
-bash setup.sh
 ```
 
 This finds every `SKILL.md` and symlinks it into each tool's skills/rules directory:

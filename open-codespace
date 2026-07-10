@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+die() {
+  printf 'open-codespace: %s\n' "$*" >&2
+  exit 1
+}
+
+command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed"
+command -v cursor >/dev/null 2>&1 || die "Cursor's shell command is not installed"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  printf 'Usage: open-codespace [codespace-name]\n'
+  printf 'Select and open a GitHub Codespace in Cursor.\n'
+  exit 0
+fi
+
+if (( $# > 1 )); then
+  die "usage: open-codespace [codespace-name]"
+fi
+
+if (( $# == 1 )); then
+  selection=$(gh codespace view -c "$1" --json name,repository \
+    --jq '[.name, .repository] | @tsv')
+  IFS=$'\t' read -r codespace_name repository_full_name <<<"$selection"
+else
+  # Do not use gh's interactive selector here: it requires its own stdout to
+  # be a terminal, while this script needs to capture the selected value.
+  mapfile -t codespaces < <(
+    gh codespace list --json name,repository,state,lastUsedAt \
+      --jq '.[] | [.name, .repository, .state, .lastUsedAt] | @tsv'
+  )
+
+  (( ${#codespaces[@]} > 0 )) || die "your GitHub account has no Codespaces"
+
+  if (( ${#codespaces[@]} == 1 )); then
+    selected=${codespaces[0]}
+  else
+    [[ -r /dev/tty && -w /dev/tty ]] || {
+      printf '%s\n' "${codespaces[@]}" >&2
+      die "no terminal is available; run: open-codespace CODESPACE_NAME"
+    }
+
+    printf 'Choose a Codespace:\n\n' >/dev/tty
+    for index in "${!codespaces[@]}"; do
+      IFS=$'\t' read -r item_name item_repository item_state item_last_used \
+        <<<"${codespaces[$index]}"
+      printf '  %2d) %-22s %-11s %s\n' \
+        "$((index + 1))" "$item_repository" "$item_state" "$item_name" >/dev/tty
+    done
+
+    while :; do
+      printf '\nSelection [1-%d, q to cancel]: ' "${#codespaces[@]}" >/dev/tty
+      IFS= read -r choice </dev/tty || die "selection cancelled"
+      [[ "$choice" == "q" || "$choice" == "Q" ]] && die "selection cancelled"
+      if [[ "$choice" =~ ^[0-9]+$ ]] \
+        && (( choice >= 1 && choice <= ${#codespaces[@]} )); then
+        selected=${codespaces[$((choice - 1))]}
+        break
+      fi
+      printf 'Please enter a number from 1 to %d.\n' "${#codespaces[@]}" >/dev/tty
+    done
+  fi
+
+  IFS=$'\t' read -r codespace_name repository_full_name _ _ <<<"$selected"
+fi
+
+repository_name=${repository_full_name##*/}
+
+[[ -n "$codespace_name" ]] || die "no Codespace was selected"
+[[ -n "$repository_name" ]] || die "could not determine the repository folder"
+
+ssh_dir=${HOME}/.ssh
+codespaces_config=${ssh_dir}/codespaces
+ssh_config=${ssh_dir}/config
+temporary_config=$(mktemp)
+trap 'rm -f "$temporary_config"' EXIT
+
+mkdir -p "$ssh_dir"
+chmod 700 "$ssh_dir"
+
+# Regenerate one clean entry instead of appending duplicate Host blocks forever.
+gh codespace ssh -c "$codespace_name" --config >"$temporary_config"
+ssh_host=$(awk '$1 == "Host" { print $2; exit }' "$temporary_config")
+[[ -n "$ssh_host" ]] || die "gh did not generate an SSH host for $codespace_name"
+
+install -m 600 "$temporary_config" "$codespaces_config"
+touch "$ssh_config"
+chmod 600 "$ssh_config"
+
+if ! grep -Fqx 'Include ~/.ssh/codespaces' "$ssh_config"; then
+  printf '\nMatch all\nInclude ~/.ssh/codespaces\n' >>"$ssh_config"
+fi
+
+remote_workspace="/tmp/cursor-${codespace_name}.code-workspace"
+remote_bootstrap="/tmp/open-codespace-bootstrap.sh"
+remote_bootstrap_log="/tmp/open-codespace-bootstrap.log"
+
+# Build the ephemeral workspace and upload the bootstrap in one SSH round trip.
+# Neither file is inside a repository, and the bootstrap is not started yet.
+ssh "$ssh_host" bash -s -- \
+  "$remote_workspace" "$repository_name" "$remote_bootstrap" <<'REMOTE_PREP'
+set -euo pipefail
+remote_workspace=$1
+repository_name=$2
+remote_bootstrap=$3
+umask 077
+
+printf '{\n  "folders": [\n    { "path": "/workspaces/%s" },\n    { "path": "/workspaces", "name": "workspaces" }\n  ]\n}\n' \
+  "$repository_name" >"$remote_workspace"
+
+cat >"$remote_bootstrap" <<'REMOTE_BOOTSTRAP'
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+lock_dir=${HOME}/.cache/open-codespace-bootstrap.lock
+mkdir -p "${HOME}/.cache"
+
+if ! mkdir "$lock_dir" 2>/dev/null; then
+  if [[ -f "$lock_dir/pid" ]] && kill -0 "$(<"$lock_dir/pid")" 2>/dev/null; then
+    printf 'Bootstrap is already running.\n'
+    exit 0
+  fi
+  rm -f "$lock_dir/pid"
+  rmdir "$lock_dir" 2>/dev/null || true
+  mkdir "$lock_dir"
+fi
+printf '%s\n' "$$" >"$lock_dir/pid"
+trap 'rm -f "$lock_dir/pid"; rmdir "$lock_dir" 2>/dev/null || true' EXIT
+
+ensure_line() {
+  local line=$1
+  local file=$2
+  touch "$file"
+  grep -Fqx "$line" "$file" || printf '\n%s\n' "$line" >>"$file"
+}
+
+printf '[1/5] Configuring the shell environment...\n'
+ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"
+ensure_line 'export IS_SANDBOX=1' "$HOME/.bashrc"
+ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
+ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.bashrc"
+ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.bashrc"
+
+# Keep the same behavior if a Codespace uses zsh instead of the default bash.
+ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc"
+ensure_line 'export IS_SANDBOX=1' "$HOME/.zshrc"
+ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.zshrc"
+ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.zshrc"
+ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.zshrc"
+
+export PATH="$HOME/.local/bin:$PATH"
+export IS_SANDBOX=1
+export NVM_DIR="$HOME/.nvm"
+
+printf '[2/5] Installing Claude Code if needed...\n'
+if ! command -v claude >/dev/null 2>&1; then
+  curl -fsSL https://claude.ai/install.sh | bash
+fi
+
+printf '[3/5] Installing NVM and Node.js 22 if needed...\n'
+if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh \
+    | PROFILE="$HOME/.bashrc" bash
+fi
+# shellcheck source=/dev/null
+\. "$NVM_DIR/nvm.sh"
+
+if [[ "$(nvm version 22)" == "N/A" ]]; then
+  nvm install 22
+else
+  nvm use 22
+fi
+nvm alias default 22
+
+printf '[4/5] Installing Codex if needed...\n'
+if ! command -v codex >/dev/null 2>&1; then
+  npm install -g @openai/codex
+fi
+
+printf '[5/5] Installing the shared development environment...\n'
+dev_env_dir=/dev-env
+if [[ ! -e "$dev_env_dir" && ! -w / ]]; then
+  if command -v sudo >/dev/null 2>&1 \
+    && sudo -n install -d -o "$(id -u)" -g "$(id -g)" "$dev_env_dir"; then
+    :
+  else
+    dev_env_dir=$HOME/dev-env
+  fi
+fi
+
+if [[ ! -e "$dev_env_dir" ]]; then
+  git clone https://github.com/dcatarino/dev-env "$dev_env_dir"
+elif [[ ! -d "$dev_env_dir/.git" ]]; then
+  printf '%s exists but is not a Git checkout; cannot install dev-env.\n' \
+    "$dev_env_dir" >&2
+  exit 1
+fi
+bash "$dev_env_dir/setup.sh"
+
+printf '\nBootstrap complete.\n'
+printf 'Node:   %s\n' "$(node --version)"
+printf 'npm:    %s\n' "$(npm --version)"
+printf 'Claude: %s\n' "$(command -v claude)"
+printf 'Codex:  %s\n' "$(command -v codex)"
+printf 'dev-env: %s\n' "$dev_env_dir"
+REMOTE_BOOTSTRAP
+REMOTE_PREP
+
+printf 'Opening /workspaces/%s and /workspaces on %s in Cursor...\n' \
+  "$repository_name" "$codespace_name"
+
+cursor --new-window \
+  --remote "ssh-remote+${ssh_host}" \
+  "$remote_workspace"
+
+# Start installation only after Cursor has been launched. Both the local SSH
+# starter and the remote bootstrap are detached, so this command returns at once.
+(
+  ssh "$ssh_host" \
+    "nohup bash '$remote_bootstrap' >'$remote_bootstrap_log' 2>&1 </dev/null &"
+) >/dev/null 2>&1 &
+
+printf 'Background setup started; inside the Codespace, follow it with:\n'
+printf '  tail -f %s\n' "$remote_bootstrap_log"

@@ -13,8 +13,9 @@ git clone https://github.com/dcatarino/dev-env
 bash dev-env/setup.sh
 ```
 
-`setup.sh` installs the shared skills and instructions, then symlinks the
-`open-codespace` helper into `~/.local/bin`.
+`setup.sh` is only for the local computer. It symlinks the `open-codespace`
+helper into `~/.local/bin`; it does not install agent skills or instructions
+locally.
 
 ## Open a Codespace in Cursor
 
@@ -35,7 +36,12 @@ order:
 1. Claude Code
 2. NVM and Node.js 22
 3. Codex
-4. This `dev-env` repository and its shared setup
+4. This `dev-env` repository and its legacy Codespace setup
+
+The final step clones or updates `dev-env` inside the Codespace and runs
+`legacy-codespace-setup.sh` there. This installs the shared skills and agent
+instructions automatically; the legacy installer does not need to be run on
+the local computer.
 
 Follow the background bootstrap from a Codespace terminal with:
 
@@ -52,7 +58,9 @@ open-codespace CODESPACE_NAME
 ## Layout
 
 - `open-codespace` — local Cursor/GitHub Codespaces launcher and remote bootstrap.
-- `setup.sh` — installs all helpers, skills, and shared instructions.
+- `setup.sh` — local-only installer for the `open-codespace` command.
+- `legacy-codespace-setup.sh` — remote installer for skills and shared agent
+  instructions, invoked automatically by `open-codespace`.
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
@@ -71,12 +79,14 @@ This finds every `SKILL.md` and symlinks it into each tool's skills/rules direct
 - Codex   → `~/.agents/skills/<name>/` (folder symlink)
 - Cursor  → `~/.cursor/skills/<name>/` (folder symlink)
 
-Symlinks (not copies) are used, so edits in this repo are picked up by all tools immediately. Re-run `setup.sh` after adding a new skill.
+Symlinks (not copies) are used, so edits in the Codespace checkout are picked up
+by all tools immediately. `open-codespace` updates the checkout and reruns the
+legacy installer whenever a Codespace is opened.
 
 ## Agent instructions
 
-`setup.sh` also installs the shared Odoo agent instructions (`odoo-agent.md`) into
-each tool's global location:
+`legacy-codespace-setup.sh` installs the shared Odoo agent instructions
+(`odoo-agent.md`) into each tool's global location:
 
 - Claude → `~/.claude/CLAUDE.md` (symlink)
 - Codex  → `~/.codex/AGENTS.md` (symlink)
@@ -92,7 +102,7 @@ in the Settings UI, not on disk). So instructions are installed two ways:
   to `<project>/.cursor/rules/odoo-agent.mdc` (with `alwaysApply: true`):
 
   ```bash
-  bash setup.sh /workspaces/<project>
+  bash legacy-codespace-setup.sh /workspaces/<project>
   ```
 
   It's generated (not symlinked) because the `.mdc` needs frontmatter; re-run after

@@ -198,7 +198,11 @@ elif [[ ! -d "$dev_env_dir/.git" ]]; then
     "$dev_env_dir" >&2
   exit 1
 fi
-bash "$dev_env_dir/setup.sh"
+
+# Keep an existing Codespace checkout current so it receives new skills and
+# installer changes before refreshing the shared agent environment.
+git -C "$dev_env_dir" pull --ff-only
+bash "$dev_env_dir/legacy-codespace-setup.sh"
 
 printf '\nBootstrap complete.\n'
 printf 'Node:   %s\n' "$(node --version)"

@@ -2,8 +2,9 @@
 
 This is my personal **development environment repository**, shared across Claude
 Code, Codex, and Cursor. It is the source of truth for reusable skills, shared
-Odoo agent instructions, and local development helpers. `setup.sh` symlinks them
-into each tool's global locations.
+Odoo agent instructions, and local development helpers. `setup.sh` symlinks the
+local launcher into the command path, while `legacy-codespace-setup.sh` installs
+skills and agent instructions inside Codespaces.
 
 ## What working in this repo means
 
@@ -22,16 +23,20 @@ skills describe.
 ## Layout
 
 - `odoo-dev-skills/<skill-name>/SKILL.md` — one folder per skill.
-- `odoo-agent.md` — shared Odoo agent instructions. `setup.sh` installs this as
-  the global `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, so edits here change
-  my global agent behavior in other projects.
+- `odoo-agent.md` — shared Odoo agent instructions.
+  `legacy-codespace-setup.sh` installs this as the global
+  `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` inside Codespaces, so edits here
+  change my agent behavior in other Codespace projects.
 - `open-codespace` — opens a selected GitHub Codespace in Cursor with both the
   repository and `/workspaces`, then starts a detached, idempotent bootstrap.
   The bootstrap order is Claude Code, NVM/Node 22, Codex, then cloning and
-  running this repository's setup. Its remote files live under `/tmp`; it must
-  not change the selected project repository.
-- `setup.sh` — installs the launcher, skills, and agent instructions via
-  symlinks. Re-run after adding a skill or on a new development machine.
+  running this repository's legacy Codespace setup. Its remote files live under
+  `/tmp`; it must not change the selected project repository.
+- `setup.sh` — local-only installer that symlinks `open-codespace` into
+  `~/.local/bin`. It must not install skills or agent instructions locally.
+- `legacy-codespace-setup.sh` — installs skills and shared agent instructions
+  inside a Codespace. `open-codespace` updates the remote `dev-env` checkout and
+  invokes this script automatically.
 - `README.md` — human-facing overview.
 
 ## Editing development helpers
@@ -41,6 +46,8 @@ skills describe.
 - Preserve the dedicated `~/.ssh/codespaces` include instead of appending
   generated host blocks repeatedly to `~/.ssh/config`.
 - Keep the remote bootstrap safe to rerun and guarded against concurrent runs.
+- Keep local and remote responsibilities separate: `setup.sh` installs only the
+  launcher locally; `legacy-codespace-setup.sh` owns agent setup remotely.
 - Preserve the intentional sandboxed Claude alias unless explicitly asked to
   change it.
 - Validate shell changes with `bash -n`; run `shellcheck` when available.

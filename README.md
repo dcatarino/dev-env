@@ -64,6 +64,9 @@ open-codespace CODESPACE_NAME
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
+Current skills (`odoo-dev-skills/`): `odoo-commit`, `odoo-staging-branch`,
+`odoo-pr`, `odoo-integrations`, `run-odoo-tests`.
+
 Skills are grouped into category folders, with one folder per skill containing
 a `SKILL.md`:
 

@@ -1,7 +1,7 @@
 ---
 name: odoo-staging-branch
 description: This skill should be used when the user explicitly asks to create and commit on an Odoo staging branch — e.g. "commit the changes, ticket-XXXX, and create and commit on a staging branch". Covers determining the Odoo version, the staging branch naming convention, branching from the matching upstream staging branch, detecting when a local staging branch has gone stale (because the upstream staging branch advanced) and creating an incremented -N branch, and cherry-picking the feature-branch commit onto it (including repeated iterations).
-version: 1.1.0
+version: 1.1.1
 ---
 
 # Odoo staging branch workflow
@@ -155,5 +155,3 @@ Stale-iteration staging branches:
 Report: the commit hash created on the feature branch, the staging branch name
 (noting if a new `-N` branch was created because the previous one was stale),
 that the commit was cherry-picked onto it, and whether it was pushed.
-</content>
-</invoke>

@@ -64,6 +64,11 @@ open-codespace CODESPACE_NAME
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
+Current skills (`odoo-dev-skills/`): `odoo-commit`, `odoo-staging-branch`,
+`odoo-pr`, `odoo-integrations`, `run-odoo-tests`.
+Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
+prompts/skills from recent agent session history.
+
 Skills are grouped into category folders, with one folder per skill containing
 a `SKILL.md`:
 

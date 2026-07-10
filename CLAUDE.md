@@ -1,13 +1,15 @@
-# my-skills — repository guide
+# dev-env — repository guide
 
-This is my personal **skills repository**, shared across Claude Code, Codex, and
-Cursor. It is the source of truth for my reusable skills and my shared Odoo agent
-instructions; `setup.sh` symlinks them into each tool's global locations.
+This is my personal **development environment repository**, shared across Claude
+Code, Codex, and Cursor. It is the source of truth for reusable skills, shared
+Odoo agent instructions, and local development helpers. `setup.sh` symlinks the
+local launcher into the command path, while `remote-codespace-setup.sh` installs
+skills and agent instructions inside Codespaces.
 
 ## What working in this repo means
 
-When you're in this repo, the task is almost always to **author, edit, review, or
-improve the skills and their supporting files** — not to perform the workflows the
+When you're in this repo, the task is to **author, edit, review, or improve the
+development environment artifacts** — not to perform the workflows that its
 skills describe.
 
 - **Do not invoke these skills as workflows just because a request seems to match
@@ -21,12 +23,34 @@ skills describe.
 ## Layout
 
 - `odoo-dev-skills/<skill-name>/SKILL.md` — one folder per skill.
-- `odoo-agent.md` — shared Odoo agent instructions. `setup.sh` installs this as
-  the global `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, so edits here change
-  my global agent behavior in other projects.
-- `setup.sh` — installs skills + agent instructions (symlinks). Re-run after
-  adding a skill.
+- `odoo-agent.md` — shared Odoo agent instructions.
+  `remote-codespace-setup.sh` installs this as the global
+  `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` inside Codespaces, so edits here
+  change my agent behavior in other Codespace projects.
+- `open-codespace` — opens a selected GitHub Codespace in Cursor with both the
+  repository and `/workspaces`, then starts a detached, idempotent bootstrap.
+  The bootstrap order is Claude Code, NVM/Node 22, Codex, then cloning and
+  running this repository's remote Codespace setup. Its remote files live under
+  `/tmp`; it must not change the selected project repository.
+- `setup.sh` — local-only installer that symlinks `open-codespace` into
+  `~/.local/bin`. It must not install skills or agent instructions locally.
+- `remote-codespace-setup.sh` — installs skills and shared agent instructions
+  inside a Codespace. `open-codespace` updates the remote `dev-env` checkout and
+  invokes this script automatically.
 - `README.md` — human-facing overview.
+
+## Editing development helpers
+
+- Keep `open-codespace` non-blocking: Cursor must launch before the detached
+  tool/bootstrap installation begins.
+- Preserve the dedicated `~/.ssh/codespaces` include instead of appending
+  generated host blocks repeatedly to `~/.ssh/config`.
+- Keep the remote bootstrap safe to rerun and guarded against concurrent runs.
+- Keep local and remote responsibilities separate: `setup.sh` installs only the
+  launcher locally; `remote-codespace-setup.sh` owns agent setup remotely.
+- Preserve the intentional sandboxed Claude alias unless explicitly asked to
+  change it.
+- Validate shell changes with `bash -n`; run `shellcheck` when available.
 
 ## Editing skills
 
@@ -41,5 +65,5 @@ skills describe.
 This meta-repo is not an Odoo project, so the Odoo rules from my global agent
 instructions (per-change ticket identifier, always-plan-mode, pre-commit) do
 **not** apply to changes made here. Use plain, descriptive commit messages in the
-style of the existing history, ending with the `Co-Authored-By: Claude ...`
-trailer. Only commit or push when I ask.
+style of the existing history, ending with a `Co-Authored-By` trailer naming the
+model that authored the change. Only commit or push when I ask.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Legacy Codespace installer for shared skills and agent instructions.
+# Remote Codespace installer for shared skills and agent instructions.
 # Normally invoked automatically by open-codespace.
-# Usage:  bash legacy-codespace-setup.sh [project_dir]
+# Usage:  bash remote-codespace-setup.sh [project_dir]
 #   project_dir (optional): an Odoo project to receive a Cursor .cursor/rules rule.
 set -euo pipefail
 
@@ -58,7 +58,7 @@ if [ -n "$PROJECT_DIR" ]; then
   echo "installed: $rule (generated; re-run after editing odoo-agent.md)"
 else
   echo "Cursor: no project dir given — pass one to install a project rule:"
-  echo "        bash legacy-codespace-setup.sh /workspaces/<project>"
+  echo "        bash remote-codespace-setup.sh /workspaces/<project>"
 fi
 
 echo "Cursor global rule has no reliable file — for a global rule, paste"

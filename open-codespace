@@ -202,7 +202,7 @@ fi
 # Keep an existing Codespace checkout current so it receives new skills and
 # installer changes before refreshing the shared agent environment.
 git -C "$dev_env_dir" pull --ff-only
-bash "$dev_env_dir/legacy-codespace-setup.sh"
+bash "$dev_env_dir/remote-codespace-setup.sh"
 
 printf '\nBootstrap complete.\n'
 printf 'Node:   %s\n' "$(node --version)"

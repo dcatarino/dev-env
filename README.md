@@ -36,11 +36,11 @@ order:
 1. Claude Code
 2. NVM and Node.js 22
 3. Codex
-4. This `dev-env` repository and its legacy Codespace setup
+4. This `dev-env` repository and its remote Codespace setup
 
 The final step clones or updates `dev-env` inside the Codespace and runs
-`legacy-codespace-setup.sh` there. This installs the shared skills and agent
-instructions automatically; the legacy installer does not need to be run on
+`remote-codespace-setup.sh` there. This installs the shared skills and agent
+instructions automatically; the remote installer does not need to be run on
 the local computer.
 
 Follow the background bootstrap from a Codespace terminal with:
@@ -59,7 +59,7 @@ open-codespace CODESPACE_NAME
 
 - `open-codespace` — local Cursor/GitHub Codespaces launcher and remote bootstrap.
 - `setup.sh` — local-only installer for the `open-codespace` command.
-- `legacy-codespace-setup.sh` — remote installer for skills and shared agent
+- `remote-codespace-setup.sh` — remote installer for skills and shared agent
   instructions, invoked automatically by `open-codespace`.
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
@@ -81,11 +81,11 @@ This finds every `SKILL.md` and symlinks it into each tool's skills/rules direct
 
 Symlinks (not copies) are used, so edits in the Codespace checkout are picked up
 by all tools immediately. `open-codespace` updates the checkout and reruns the
-legacy installer whenever a Codespace is opened.
+remote installer whenever a Codespace is opened.
 
 ## Agent instructions
 
-`legacy-codespace-setup.sh` installs the shared Odoo agent instructions
+`remote-codespace-setup.sh` installs the shared Odoo agent instructions
 (`odoo-agent.md`) into each tool's global location:
 
 - Claude → `~/.claude/CLAUDE.md` (symlink)
@@ -102,7 +102,7 @@ in the Settings UI, not on disk). So instructions are installed two ways:
   to `<project>/.cursor/rules/odoo-agent.mdc` (with `alwaysApply: true`):
 
   ```bash
-  bash legacy-codespace-setup.sh /workspaces/<project>
+  bash remote-codespace-setup.sh /workspaces/<project>
   ```
 
   It's generated (not symlinked) because the `.mdc` needs frontmatter; re-run after

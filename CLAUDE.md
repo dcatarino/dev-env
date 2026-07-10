@@ -19,10 +19,15 @@ skills describe.
 - Treat the skills' own instructions (e.g. the Odoo `[ticket-XXXX]` commit format,
   the staging-branch steps) as content you maintain, not rules you must follow
   while editing this repo.
+- **Exception:** `self-improvement-dev-env` is a workflow meant to run *on* this
+  repo. It is manual-only (`disable-model-invocation: true`) — follow it when I
+  invoke `/self-improvement-dev-env`.
 
 ## Layout
 
-- `odoo-dev-skills/<skill-name>/SKILL.md` — one folder per skill.
+- `odoo-dev-skills/<skill-name>/SKILL.md` — one folder per skill (Odoo work).
+- `meta-skills/<skill-name>/SKILL.md` — skills about the dev environment itself
+  (e.g. `self-improvement-dev-env`).
 - `odoo-agent.md` — shared Odoo agent instructions.
   `remote-codespace-setup.sh` installs this as the global
   `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` inside Codespaces, so edits here

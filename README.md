@@ -66,6 +66,8 @@ open-codespace CODESPACE_NAME
 
 Current skills (`odoo-dev-skills/`): `odoo-commit`, `odoo-staging-branch`,
 `odoo-pr`, `odoo-integrations`, `run-odoo-tests`.
+Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
+prompts/skills from recent agent session history.
 
 Skills are grouped into category folders, with one folder per skill containing
 a `SKILL.md`:

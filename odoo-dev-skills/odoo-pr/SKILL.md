@@ -1,7 +1,7 @@
 ---
 name: odoo-pr
 description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with a /run-tests comment, and the GitHub auth model (org token vs personal repos).
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Open a pull request
@@ -44,9 +44,19 @@ gh pr comment <pr_number> --body "/run-tests"
 - **360ERP org repos** (`360ERP/*`): the Codespace's injected token pushes and
   opens PRs directly — `git push` / `gh` just work.
 - **Personal repos** (e.g. `dcatarino/*`): the injected token is read-only, so
-  pushes fail with `403`. Do not retry or investigate credentials. Ask the user
-  to authenticate by typing `! gh auth login --web` in the session (interactive
-  device flow), then retry the push.
+  pushes fail with `403`. First check `gh auth status` — if a second (stored)
+  account exists from an earlier `gh auth login`, bypass the injected token and
+  use it directly:
+
+  ```bash
+  GITHUB_TOKEN= GH_TOKEN= git -c credential.helper= \
+    -c credential.helper='!gh auth git-credential' push -u origin <branch>
+  GITHUB_TOKEN= GH_TOKEN= gh pr create --base main ...
+  ```
+
+  Only if no stored login exists, ask the user to authenticate by typing
+  `! gh auth login --web` in the session (interactive device flow), then use
+  the commands above.
 - **Never** probe the git credential helper, `gh auth token`, git config, or
   environment variables to extract tokens — this is blocked and wastes the
   session.

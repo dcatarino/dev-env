@@ -63,3 +63,27 @@ fi
 
 echo "Cursor global rule has no reliable file — for a global rule, paste"
 echo "odoo-agent.md into Cursor Settings > Rules (User Rules)."
+
+# --- GitHub CLI (gh) --------------------------------------------------------
+# The odoo-pr skill needs `gh` (expects /usr/bin/gh), but codespaces don't
+# always ship it. Install via GitHub's official apt repo. Auth is automatic
+# through the codespace-injected GITHUB_TOKEN/GH_TOKEN, so no `gh auth login` is
+# required. Best-effort: a failure here must not abort the rest of the setup.
+install_gh() {
+  if command -v gh >/dev/null 2>&1; then
+    echo "gh already installed: $(gh --version | head -n1)"
+    return 0
+  fi
+  echo "installing gh (GitHub CLI)..."
+  sudo mkdir -p -m 755 /etc/apt/keyrings
+  wget -nv -O- https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+  sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+  sudo apt-get update
+  sudo apt-get install -y gh
+  echo "installed: $(gh --version | head -n1)"
+}
+
+install_gh || echo "warning: gh install failed; open a PR manually or rerun setup"

@@ -59,17 +59,23 @@ Ask questions before implementation when:
 - More context is needed to implement the task correctly.
 - A key implementation decision is required.
 - The affected module, model, integration flow, or external system behavior is ambiguous.
-- The prompt does not include a required ticket/task identifier (see below).
 
 If enough context is available, proceed with the plan and implementation.
 
-## Ticket and Task Identifiers
+## Commit Identifiers
 
-Every code change must be associated with either a `task-XXXX`, `ticket-XXXX`, or `request-XXXX` identifier (e.g. `task-1234`, `ticket-5678`, `request-891`).
+A `task-XXXX`, `ticket-XXXX`, or `request-XXXX` identifier (e.g. `task-1234`,
+`ticket-5678`, `request-891`) is required only when the user explicitly asks
+to create a commit, including as part of the staging-branch workflow.
 
-If the user prompt does not include one, ask for it before editing files or creating commits. Never guess a missing identifier. Use the identifier exactly as provided by the user.
+Do not require or ask for an identifier for questions, investigation, planning,
+or file changes that the user does not want committed. If a commit was not
+requested, proceed without one.
 
-The commit message format and the branch naming conventions that use this identifier are defined in the `odoo-commit` and `odoo-staging-branch` skills respectively. Invoke those skills when the user asks to commit or to create a staging branch.
+When a commit is requested, follow the `odoo-commit` skill. It defines when to
+ask for a missing identifier and how to use it in the commit message. The
+`odoo-staging-branch` skill defines the related branch naming conventions.
+Never guess a missing identifier; use it exactly as provided by the user.
 
 ## Validation and Tests
 

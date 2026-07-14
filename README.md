@@ -49,10 +49,12 @@ Follow the background bootstrap from a Codespace terminal with:
 tail -f /tmp/open-codespace-bootstrap.log
 ```
 
-Pass a Codespace name to skip the selector:
+Pass a Codespace name or URL to skip the selector:
 
 ```bash
 open-codespace-cursor CODESPACE_NAME
+open-codespace-cursor https://CODESPACE_NAME.github.dev/
+open-codespace-cursor https://github.com/codespaces/CODESPACE_NAME
 ```
 
 ## Open a Codespace in the terminal
@@ -75,10 +77,12 @@ progress from the Codespace with:
 tail -f /tmp/open-codespace-bootstrap.log
 ```
 
-Pass a Codespace name to skip the selector:
+Pass a Codespace name or URL to skip the selector:
 
 ```bash
 open-codespace-terminal CODESPACE_NAME
+open-codespace-terminal https://CODESPACE_NAME.github.dev/
+open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 ```
 
 ## Layout

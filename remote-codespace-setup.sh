@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Remote Codespace installer for shared skills and agent instructions.
-# Normally invoked automatically by open-codespace.
+# Normally invoked automatically by either open-codespace launcher.
 # Usage:  bash remote-codespace-setup.sh [project_dir]
 #   project_dir (optional): an Odoo project to receive a Cursor .cursor/rules rule.
 set -euo pipefail

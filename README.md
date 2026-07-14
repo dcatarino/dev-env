@@ -13,16 +13,16 @@ git clone https://github.com/dcatarino/dev-env
 bash dev-env/setup.sh
 ```
 
-`setup.sh` is only for the local computer. It symlinks the `open-codespace`
-helper into `~/.local/bin`; it does not install agent skills or instructions
-locally.
+`setup.sh` is only for the local computer. It symlinks the Cursor and terminal
+Codespace helpers into `~/.local/bin`; it does not install agent skills or
+instructions locally.
 
 ## Open a Codespace in Cursor
 
 Run from any local directory:
 
 ```bash
-open-codespace
+open-codespace-cursor
 ```
 
 The helper lets you select a GitHub Codespace, refreshes its dedicated SSH
@@ -52,15 +52,43 @@ tail -f /tmp/open-codespace-bootstrap.log
 Pass a Codespace name to skip the selector:
 
 ```bash
-open-codespace CODESPACE_NAME
+open-codespace-cursor CODESPACE_NAME
+```
+
+## Open a Codespace in the terminal
+
+From Warp or any other terminal, run:
+
+```bash
+open-codespace-terminal
+```
+
+The helper performs the same Codespace selection, SSH configuration, and
+background setup as the Cursor launcher, then connects the current terminal to
+the Codespace and starts an interactive shell in `/workspaces`. Cursor is not
+required.
+
+Setup runs in the background, so the terminal connects immediately. Follow its
+progress from the Codespace with:
+
+```bash
+tail -f /tmp/open-codespace-bootstrap.log
+```
+
+Pass a Codespace name to skip the selector:
+
+```bash
+open-codespace-terminal CODESPACE_NAME
 ```
 
 ## Layout
 
-- `open-codespace` — local Cursor/GitHub Codespaces launcher and remote bootstrap.
-- `setup.sh` — local-only installer for the `open-codespace` command.
+- `open-codespace-cursor` — local Cursor/GitHub Codespaces launcher.
+- `open-codespace-terminal` — terminal-based Codespaces launcher.
+- `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
+- `setup.sh` — local-only installer for both launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills and shared agent
-  instructions, invoked automatically by `open-codespace`.
+  instructions, invoked automatically by both launchers.
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
@@ -85,8 +113,8 @@ This finds every `SKILL.md` and symlinks it into each tool's skills/rules direct
 - Cursor  → `~/.cursor/skills/<name>/` (folder symlink)
 
 Symlinks (not copies) are used, so edits in the Codespace checkout are picked up
-by all tools immediately. `open-codespace` updates the checkout and reruns the
-remote installer whenever a Codespace is opened.
+by all tools immediately. Both Codespace launchers update the checkout and rerun
+the remote installer whenever a Codespace is opened.
 
 ## Agent instructions
 

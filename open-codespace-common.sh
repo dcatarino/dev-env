@@ -2,6 +2,28 @@
 
 # Shared implementation for the Cursor and terminal Codespace launchers.
 
+codespace_name_from_input() {
+  local input=$1
+
+  if [[ "$input" =~ ^https://([[:alnum:]-]+)\.github\.dev/?([?#].*)?$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  if [[ "$input" =~ ^https://github\.com/codespaces/([[:alnum:]-]+)/?([?#].*)?$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  # Treat other URL-shaped values as mistakes instead of passing them to gh as
+  # Codespace names and returning a less useful lookup error.
+  if [[ "$input" =~ ^[[:alpha:]][[:alnum:]+.-]*:// ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "$input"
+}
+
 open_codespace_main() {
   local launcher=$1
   shift
@@ -25,7 +47,7 @@ open_codespace_main() {
   fi
 
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    printf 'Usage: %s [codespace-name]\n' "$command_name"
+    printf 'Usage: %s [codespace-name-or-url]\n' "$command_name"
     if [[ "$launcher" == "cursor" ]]; then
       printf 'Select and open a GitHub Codespace in Cursor.\n'
     else
@@ -35,15 +57,18 @@ open_codespace_main() {
   fi
 
   if (( $# > 1 )); then
-    die "usage: $command_name [codespace-name]"
+    die "usage: $command_name [codespace-name-or-url]"
   fi
 
-  local selection selected codespace_name repository_full_name repository_name
+  local selection selected codespace_input codespace_name
+  local repository_full_name repository_name
   local item_name item_repository item_state item_last_used index choice
   local -a codespaces
 
   if (( $# == 1 )); then
-    selection=$(gh codespace view -c "$1" --json name,repository \
+    codespace_input=$(codespace_name_from_input "$1") \
+      || die "unsupported Codespace URL: $1"
+    selection=$(gh codespace view -c "$codespace_input" --json name,repository \
       --jq '[.name, .repository] | @tsv')
     IFS=$'\t' read -r codespace_name repository_full_name <<<"$selection"
   else

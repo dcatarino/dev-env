@@ -59,18 +59,48 @@ open-codespace-cursor https://github.com/codespaces/CODESPACE_NAME
 
 ## Open a Codespace in the terminal
 
-From Warp or any other terminal, run:
+From any terminal, run:
 
 ```bash
 open-codespace-terminal
 ```
 
 The helper performs the same Codespace selection, SSH configuration, and
-background setup as the Cursor launcher, then connects the current terminal to
+background setup as the Cursor launcher. In most terminals it then connects to
 the Codespace and starts an interactive shell in `/workspaces`. Cursor is not
 required.
 
-Setup runs in the background, so the terminal connects immediately. Follow its
+### Warp remote files
+
+[Warp only starts its SSH extension](https://docs.warp.dev/terminal/warpify/ssh/)
+when it sees a direct interactive `ssh` command. It cannot detect the SSH
+process hidden inside a launcher script. In a local Warp session,
+`open-codespace-terminal` therefore prepares the Codespace and prints a command
+such as:
+
+```bash
+ssh warp.cs.CODESPACE_NAME.REPOSITORY
+```
+
+Run that printed command at the Warp prompt. Warp can then offer to install its
+matching SSH extension in the Codespace, enabling the remote file tree and code
+tools. A one-shot remote shell hook also starts that session in `/workspaces`.
+
+Run the launcher on the same computer as the Warp app. Warp does not support
+installing its SSH extension through a nested connection such as
+Warp → personal server → Codespace. If you run the launcher after SSHing into
+another server, it explains this limitation instead of opening a session that
+cannot provide Warp's remote-file features.
+
+Use `--plain` to keep the original direct connection behavior when remote files
+are not needed:
+
+```bash
+open-codespace-terminal --plain CODESPACE_NAME
+```
+
+Setup runs in the background, so plain terminal connections open immediately
+and Warp can connect as soon as the direct command is printed. Follow its
 progress from the Codespace with:
 
 ```bash
@@ -88,7 +118,8 @@ open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 ## Layout
 
 - `open-codespace-cursor` — local Cursor/GitHub Codespaces launcher.
-- `open-codespace-terminal` — terminal-based Codespaces launcher.
+- `open-codespace-terminal` — terminal-based Codespaces launcher with a direct
+  SSH handoff for Warp.
 - `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
 - `setup.sh` — local-only installer for both launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills and shared agent

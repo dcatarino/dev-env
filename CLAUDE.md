@@ -32,22 +32,26 @@ skills describe.
   `remote-codespace-setup.sh` installs this as the global
   `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` inside Codespaces, so edits here
   change my agent behavior in other Codespace projects.
-- `open-codespace` — opens a selected GitHub Codespace in Cursor with both the
-  repository and `/workspaces`, then starts a detached, idempotent bootstrap.
-  The bootstrap order is Claude Code, NVM/Node 22, Codex, then cloning and
-  running this repository's remote Codespace setup. Its remote files live under
-  `/tmp`; it must not change the selected project repository.
-- `setup.sh` — local-only installer that symlinks `open-codespace` into
+- `open-codespace-cursor` — opens a selected GitHub Codespace in Cursor with
+  both the repository and `/workspaces`, then starts a detached, idempotent
+  bootstrap.
+- `open-codespace-terminal` — starts the same detached bootstrap and connects
+  the current terminal to `/workspaces` in the selected Codespace.
+- `open-codespace-common.sh` — shared Codespace selection, SSH configuration,
+  and remote bootstrap implementation. The bootstrap order is Claude Code,
+  NVM/Node 22, Codex, then cloning and running this repository's remote setup.
+  Its remote files live under `/tmp`; it must not change the selected project.
+- `setup.sh` — local-only installer that symlinks both launchers into
   `~/.local/bin`. It must not install skills or agent instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
-  inside a Codespace. `open-codespace` updates the remote `dev-env` checkout and
-  invokes this script automatically.
+  inside a Codespace. Both launchers update the remote `dev-env` checkout and
+  invoke this script automatically.
 - `README.md` — human-facing overview.
 
 ## Editing development helpers
 
-- Keep `open-codespace` non-blocking: Cursor must launch before the detached
-  tool/bootstrap installation begins.
+- Keep both launchers non-blocking. Cursor must launch before its detached
+  bootstrap begins; terminal mode starts the bootstrap and connects immediately.
 - Preserve the dedicated `~/.ssh/codespaces` include instead of appending
   generated host blocks repeatedly to `~/.ssh/config`.
 - Keep the remote bootstrap safe to rerun and guarded against concurrent runs.

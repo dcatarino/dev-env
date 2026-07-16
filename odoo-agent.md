@@ -37,6 +37,11 @@ works — e.g. plain per-instance config parameters over shared clever ones.
   nexus secrets abstraction — see `odoo-integrations`).
 - Never probe git credential helpers, git config, or the environment for
   tokens. For push/PR auth, follow the `odoo-pr` skill.
+- Do not call the 360 ERP Odoo MCP unless the user explicitly asks for it.
+  It rarely helps with development work, and doing Odoo development is not by
+  itself a reason to use it. Only reach for it when the user clearly requests
+  live Odoo data — e.g. "retrieve my tickets from 360" or "look up this record
+  in Odoo". When in doubt, do the work without the MCP.
 
 ## Default Workflow
 

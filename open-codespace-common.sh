@@ -31,6 +31,7 @@ open_codespace_main() {
   set -euo pipefail
 
   local command_name="open-codespace-${launcher}"
+  local plain_terminal=false
 
   die() {
     printf '%s: %s\n' "$command_name" "$*" >&2
@@ -47,17 +48,48 @@ open_codespace_main() {
   fi
 
   if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    printf 'Usage: %s [codespace-name-or-url]\n' "$command_name"
     if [[ "$launcher" == "cursor" ]]; then
+      printf 'Usage: %s [codespace-name-or-url]\n' "$command_name"
       printf 'Select and open a GitHub Codespace in Cursor.\n'
     else
+      printf 'Usage: %s [--plain] [codespace-name-or-url]\n' "$command_name"
       printf 'Select and connect to a GitHub Codespace in this terminal.\n'
+      printf 'In local Warp sessions, prepare a direct SSH command so Warp can add its extension.\n'
+      printf 'Use --plain to connect without Warp SSH-extension integration.\n'
     fi
     exit 0
   fi
 
+  if [[ "${1:-}" == "--plain" ]]; then
+    [[ "$launcher" == "terminal" ]] \
+      || die "--plain is only supported by open-codespace-terminal"
+    plain_terminal=true
+    shift
+  fi
+
   if (( $# > 1 )); then
-    die "usage: $command_name [codespace-name-or-url]"
+    die "usage: $command_name [--plain] [codespace-name-or-url]"
+  fi
+
+  local warp_terminal=false
+  if [[ "$launcher" == "terminal" && "$plain_terminal" == false ]] \
+    && [[ "${TERM_PROGRAM:-}" == "WarpTerminal" \
+      || -n "${WARP_SESSION_ID:-}" || "${WARP_IS_SSH:-}" == "1" ]]; then
+    warp_terminal=true
+  fi
+
+  # Warp only starts its SSH-extension handshake for a top-level SSH command,
+  # and it does not support recursively Warpifying SSH from an existing remote
+  # session. Preparing the direct command on an intermediate server would leave
+  # the SSH configuration and Codespaces identity on the wrong machine.
+  if [[ "$warp_terminal" == true ]] \
+    && [[ "${WARP_IS_SSH:-}" == "1" || -n "${SSH_CONNECTION:-}" ]]; then
+    printf '%s: Warp cannot add its SSH extension to a nested SSH session.\n' \
+      "$command_name" >&2
+    printf 'Run %s on the computer where Warp is installed, not after SSHing into another server.\n' \
+      "$command_name" >&2
+    printf 'Use --plain only if you want to connect here without Warp remote-file features.\n' >&2
+    exit 1
   fi
 
   local selection selected codespace_input codespace_name
@@ -138,6 +170,23 @@ open_codespace_main() {
   [[ -n "$ssh_host" ]] \
     || die "gh did not generate an SSH host for $codespace_name"
 
+  # Warp cannot detect the final SSH process while it is hidden inside this
+  # launcher. Give it a dedicated alias so the command the user runs has only
+  # one positional argument and Warp recognizes it as an interactive session.
+  local warp_ssh_host="warp.${ssh_host}"
+  {
+    cat "$temporary_config"
+    printf '\n'
+    awk -v host="$warp_ssh_host" '
+      !replaced && $1 == "Host" {
+        $0 = "Host " host
+        replaced = 1
+      }
+      { print }
+    ' "$temporary_config"
+  } >"${temporary_config}.with-warp"
+  mv "${temporary_config}.with-warp" "$temporary_config"
+
   install -m 600 "$temporary_config" "$codespaces_config"
   rm -f "$temporary_config"
   trap - EXIT
@@ -160,16 +209,33 @@ open_codespace_main() {
   # Upload the bootstrap and, for Cursor, build its ephemeral workspace in one
   # SSH round trip. Neither file is inside the selected project repository.
   ssh "$ssh_host" bash -s -- \
-    "$remote_workspace" "$repository_name" "$remote_bootstrap" <<'REMOTE_PREP'
+    "$remote_workspace" "$repository_name" "$remote_bootstrap" \
+    "$warp_terminal" <<'REMOTE_PREP'
 set -euo pipefail
 remote_workspace=$1
 repository_name=$2
 remote_bootstrap=$3
+warp_terminal=$4
 umask 077
 
 if [[ "$remote_workspace" != "-" ]]; then
   printf '{\n  "folders": [\n    { "path": "/workspaces/%s" },\n    { "path": "/workspaces", "name": "workspaces" }\n  ]\n}\n' \
     "$repository_name" >"$remote_workspace"
+fi
+
+# A RemoteCommand would stop Warp's SSH bootstrap from supplying its own setup
+# command. Use a one-shot shell hook to put only the upcoming Warp session in
+# /workspaces while keeping the visible client command to a plain `ssh HOST`.
+if [[ "$warp_terminal" == true ]]; then
+  warp_start_file=$HOME/.cache/open-codespace-warp-start
+  warp_start_line='if [[ $- == *i* && -f "$HOME/.cache/open-codespace-warp-start" ]]; then rm -f "$HOME/.cache/open-codespace-warp-start"; cd /workspaces; fi'
+  mkdir -p "$HOME/.cache"
+  for shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    touch "$shell_rc"
+    grep -Fqx "$warp_start_line" "$shell_rc" \
+      || printf '\n%s\n' "$warp_start_line" >>"$shell_rc"
+  done
+  touch "$warp_start_file"
 fi
 
 cat >"$remote_bootstrap" <<'REMOTE_BOOTSTRAP'
@@ -297,11 +363,19 @@ REMOTE_PREP
     printf 'Background setup started; inside the Codespace, follow it with:\n'
     printf '  tail -f %s\n' "$remote_bootstrap_log"
   else
-    printf 'Connecting to /workspaces on %s...\n' "$codespace_name"
     start_bootstrap
-    printf 'Background setup started; follow it from the Codespace with:\n'
-    printf '  tail -f %s\n' "$remote_bootstrap_log"
-    exec ssh -t "$ssh_host" \
-      'cd /workspaces && exec "${SHELL:-/bin/bash}" -i'
+    if [[ "$warp_terminal" == true ]]; then
+      printf 'Codespace prepared for Warp. Run this direct command now:\n\n'
+      printf '  ssh %q\n\n' "$warp_ssh_host"
+      printf 'Warp must see that command at the prompt to install or connect its SSH extension.\n'
+      printf 'Background setup is running; follow it after connecting with:\n'
+      printf '  tail -f %s\n' "$remote_bootstrap_log"
+    else
+      printf 'Connecting to /workspaces on %s...\n' "$codespace_name"
+      printf 'Background setup started; follow it from the Codespace with:\n'
+      printf '  tail -f %s\n' "$remote_bootstrap_log"
+      exec ssh -t "$ssh_host" \
+        'cd /workspaces && exec "${SHELL:-/bin/bash}" -i'
+    fi
   fi
 }

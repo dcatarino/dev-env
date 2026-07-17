@@ -36,7 +36,9 @@ skills describe.
   both the repository and `/workspaces`, then starts a detached, idempotent
   bootstrap.
 - `open-codespace-terminal` — starts the same detached bootstrap and connects
-  the current terminal to `/workspaces` in the selected Codespace.
+  the current terminal to `/workspaces` in the selected Codespace. In a local
+  Warp session it prints a dedicated direct SSH command instead, allowing Warp
+  to detect the connection and install its matching remote extension.
 - `open-codespace-common.sh` — shared Codespace selection, SSH configuration,
   and remote bootstrap implementation. The bootstrap order is Claude Code,
   NVM/Node 22, Codex, then cloning and running this repository's remote setup.
@@ -51,7 +53,8 @@ skills describe.
 ## Editing development helpers
 
 - Keep both launchers non-blocking. Cursor must launch before its detached
-  bootstrap begins; terminal mode starts the bootstrap and connects immediately.
+  bootstrap begins; terminal mode starts the bootstrap and connects immediately,
+  except that local Warp sessions return a direct SSH handoff command.
 - Preserve the dedicated `~/.ssh/codespaces` include instead of appending
   generated host blocks repeatedly to `~/.ssh/config`.
 - Keep the remote bootstrap safe to rerun and guarded against concurrent runs.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Odoo UI E2E"
+  short_description: "Prepare Odoo for autonomous UI checks"
+  default_prompt: "Use $test-odoo-ui to prepare a test database, sign in as admin, and verify this Odoo UI feature end to end."

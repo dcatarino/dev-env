@@ -30,6 +30,9 @@ works — e.g. plain per-instance config parameters over shared clever ones.
 - In a Codespace, the launcher makes Odoo port `8069` public for browser-based
   verification. Derive its URL from the Codespace environment as
   `https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}/`.
+- When asked to test an Odoo UI feature end to end, follow the `test-odoo-ui`
+  skill early in the workflow to prepare the database and verify `admin/admin`
+  authentication before using browser automation.
 - When browser automation is available and UI verification is relevant to the
   requested change, use that URL after confirming the Odoo server is running.
 

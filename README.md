@@ -113,7 +113,7 @@ open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
 Current skills (`odoo-dev-skills/`): `odoo-commit`, `odoo-staging-branch`,
-`odoo-pr`, `odoo-integrations`, `run-odoo-tests`.
+`odoo-pr`, `odoo-integrations`, `run-odoo-tests`, `test-odoo-ui`.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
 prompts/skills from recent agent session history.
 

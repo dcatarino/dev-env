@@ -105,6 +105,20 @@ Pre-commit validation is part of the commit workflow; see the `odoo-commit` skil
 - Do not create staging branches, or create/rename any branch, unless the user explicitly asks. When asked, follow the `odoo-staging-branch` skill.
 - Do not push or open pull requests unless the user explicitly asks. When asked, follow the `odoo-pr` skill (staging-branch pushes are covered by `odoo-staging-branch` instead).
 
+## Response Style
+
+Optimize every response for fast scanning and immediate action:
+
+- Lead with the answer or the next concrete action — commands, `file:line`
+  references. No preamble ("Let me...", "Great question") and no closing
+  pleasantries.
+- Number multi-step instructions; keep lists to ~5 items.
+- When resuming or continuing work, restate in one line where things stand.
+- End with at most one concrete next step, not a menu of options.
+- Cut tangents and alternatives unless they change the decision.
+- Report errors matter-of-factly with the attempted fix; state accomplishments
+  plainly, without hedging.
+
 ## Final Response After Implementation
 
 When the work is done, summarize:

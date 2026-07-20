@@ -87,3 +87,35 @@ install_gh() {
 }
 
 install_gh || echo "warning: gh install failed; open a PR manually or rerun setup"
+
+# --- Browser automation (Playwright + Chromium) -----------------------------
+# Browser-capable agents need a real browser runtime for autonomous Odoo UI
+# checks. Pin Playwright because its package and downloaded browser build must
+# stay compatible. A versioned marker keeps repeated launcher runs fast.
+PLAYWRIGHT_VERSION=1.61.1
+PLAYWRIGHT_READY="$HOME/.cache/dev-env/playwright-$PLAYWRIGHT_VERSION.ready"
+
+install_playwright() {
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm is unavailable; cannot install Playwright" >&2
+    return 1
+  fi
+
+  if command -v playwright >/dev/null 2>&1 \
+    && [[ "$(playwright --version)" == "Version $PLAYWRIGHT_VERSION" ]] \
+    && [[ -f "$PLAYWRIGHT_READY" ]]; then
+    echo "playwright already installed: $(playwright --version)"
+    return 0
+  fi
+
+  echo "installing Playwright $PLAYWRIGHT_VERSION and Chromium..."
+  npm install -g "playwright@$PLAYWRIGHT_VERSION" || return 1
+  hash -r
+  playwright install --with-deps chromium || return 1
+  mkdir -p "$(dirname "$PLAYWRIGHT_READY")"
+  touch "$PLAYWRIGHT_READY"
+  echo "installed: $(playwright --version) with Chromium"
+}
+
+install_playwright \
+  || echo "warning: Playwright install failed; rerun setup before browser E2E testing"

@@ -40,8 +40,10 @@ order:
 
 The final step clones or updates `dev-env` inside the Codespace and runs
 `remote-codespace-setup.sh` there. This installs the shared skills and agent
-instructions automatically; the remote installer does not need to be run on
-the local computer.
+instructions, GitHub CLI, and the Playwright/Chromium browser runtime
+automatically; the remote installer does not need to be run on the local
+computer. Tool installation is best-effort so a temporary package-source
+failure does not prevent the agent configuration from being refreshed.
 
 Every time either launcher opens a Codespace, it also makes the already
 forwarded Odoo port `8069` public. Cursor receives its open request and starts
@@ -107,8 +109,9 @@ open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 - `open-codespace-terminal` — terminal-based Codespaces launcher.
 - `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
 - `setup.sh` — local-only installer for both launcher commands.
-- `remote-codespace-setup.sh` — remote installer for skills and shared agent
-  instructions, invoked automatically by both launchers.
+- `remote-codespace-setup.sh` — remote installer for skills, shared agent
+  instructions, GitHub CLI, and browser automation, invoked automatically by
+  both launchers.
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 

@@ -319,9 +319,10 @@ REMOTE_PREP
       --remote "ssh-remote+${ssh_host}" \
       "$remote_workspace"
 
-    # Cursor must launch before any background setup or port publication.
-    start_odoo_port_publication "$codespace_name"
+    # Cursor receives its open request and bootstrap starts before the
+    # synchronous publication, so a slow GitHub API call cannot delay either.
     start_bootstrap
+    publish_odoo_port "$codespace_name"
     printf 'Background setup started; inside the Codespace, follow it with:\n'
     printf '  tail -f %s\n' "$remote_bootstrap_log"
   else

@@ -51,8 +51,8 @@ skills describe.
 ## Editing development helpers
 
 - Keep both launchers non-blocking. Cursor must launch before its detached
-  bootstrap or port publication begins; terminal mode starts both background
-  operations and connects immediately.
+  bootstrap and synchronous port publication begin; terminal mode starts port
+  publication and the bootstrap in the background, then connects immediately.
 - Keep Odoo port 8069 public on every launcher run and report its public URL so
   browser-capable agents can verify the Codespace application.
 - Preserve the dedicated `~/.ssh/codespaces` include instead of appending

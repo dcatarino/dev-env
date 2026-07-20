@@ -43,6 +43,22 @@ The final step clones or updates `dev-env` inside the Codespace and runs
 instructions automatically; the remote installer does not need to be run on
 the local computer.
 
+Every time either launcher opens a Codespace, it also makes the already
+forwarded Odoo port `8069` public. Cursor receives its open request and starts
+the detached bootstrap before publishing the port, so this GitHub API request
+cannot delay the application opening. Terminal mode publishes the port in the
+background so its connection is not held up. Odoo is then available to
+browser-capable agents at:
+
+```text
+https://CODESPACE_NAME-8069.app.github.dev/
+```
+
+The launcher reports an error after Cursor starts, or in the terminal
+background, if port `8069` is not forwarded or a GitHub organization policy
+prevents public ports. A public port can be reached by anyone who knows its
+URL, so Odoo's own authentication remains important.
+
 Follow the background bootstrap from a Codespace terminal with:
 
 ```bash

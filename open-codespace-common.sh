@@ -24,6 +24,33 @@ codespace_name_from_input() {
   printf '%s\n' "$input"
 }
 
+publish_odoo_port() {
+  local codespace_name=$1
+  local odoo_port=8069
+
+  printf 'Making Odoo port %s public on %s...\n' \
+    "$odoo_port" "$codespace_name"
+  if ! gh codespace ports visibility \
+    "${odoo_port}:public" -c "$codespace_name"; then
+    printf 'Could not publish Odoo port %s. Ensure it is forwarded and that GitHub policy permits public ports.\n' \
+      "$odoo_port" >&2
+    return 1
+  fi
+
+  printf 'Odoo URL: https://%s-%s.app.github.dev/\n' \
+    "$codespace_name" "$odoo_port"
+}
+
+start_odoo_port_publication() {
+  local codespace_name=$1
+
+  # Do not make editor/terminal startup wait on another GitHub API request.
+  (
+    trap '' HUP
+    publish_odoo_port "$codespace_name"
+  ) &
+}
+
 open_codespace_main() {
   local launcher=$1
   shift
@@ -292,12 +319,15 @@ REMOTE_PREP
       --remote "ssh-remote+${ssh_host}" \
       "$remote_workspace"
 
-    # Preserve the existing behavior: Cursor launches before installation.
+    # Cursor receives its open request and bootstrap starts before the
+    # synchronous publication, so a slow GitHub API call cannot delay either.
     start_bootstrap
+    publish_odoo_port "$codespace_name"
     printf 'Background setup started; inside the Codespace, follow it with:\n'
     printf '  tail -f %s\n' "$remote_bootstrap_log"
   else
     printf 'Connecting to /workspaces on %s...\n' "$codespace_name"
+    start_odoo_port_publication "$codespace_name"
     start_bootstrap
     printf 'Background setup started; follow it from the Codespace with:\n'
     printf '  tail -f %s\n' "$remote_bootstrap_log"

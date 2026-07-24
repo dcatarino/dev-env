@@ -115,10 +115,17 @@ open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
-Current skills (`odoo-dev-skills/`): `odoo-commit`, `odoo-staging-branch`,
-`odoo-pr`, `odoo-integrations`, `run-odoo-tests`, `test-odoo-ui`.
+Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
+`odoo-staging-branch`, `odoo-pr`, `odoo-integrations`, `run-odoo-tests`,
+`test-odoo-ui`.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
 prompts/skills from recent agent session history.
+
+In Claude or Cursor, invoke `/development-request <record-ID-or-URL>` to retrieve
+and analyse a live 360 ERP request. The skill expects the 360 ERP Odoo MCP to be
+configured and authenticated in the Codespace; if it is unavailable, it reports
+the blocker and continues from supplied context and repository evidence when
+possible.
 
 Skills are grouped into category folders, with one folder per skill containing
 a `SKILL.md`:

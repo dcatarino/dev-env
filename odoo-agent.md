@@ -104,6 +104,10 @@ Pre-commit validation is part of the commit workflow; see the `odoo-commit` skil
 - Do not commit changes unless the user explicitly asks you to commit. When asked, follow the `odoo-commit` skill.
 - Do not create staging branches, or create/rename any branch, unless the user explicitly asks. When asked, follow the `odoo-staging-branch` skill.
 - Do not push or open pull requests unless the user explicitly asks. When asked, follow the `odoo-pr` skill (staging-branch pushes are covered by `odoo-staging-branch` instead).
+- **Never leave a 360ERP org PR without a `/run-tests` comment.** It is what
+  triggers the CI pipeline, so treat it as part of opening or updating the PR,
+  not an optional follow-up. The `odoo-pr` skill has the command. Personal repos
+  (`dcatarino/*`) have no such pipeline — skip it there.
 
 ## Response Style
 

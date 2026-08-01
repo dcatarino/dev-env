@@ -75,7 +75,13 @@ skills describe.
 ## Commits in this repo
 
 This meta-repo is not an Odoo project, so the Odoo rules from my global agent
-instructions (per-change ticket identifier, always-plan-mode, pre-commit) do
-**not** apply to changes made here. Use plain, descriptive commit messages in the
-style of the existing history, ending with a `Co-Authored-By` trailer naming the
-model that authored the change. Only commit or push when I ask.
+instructions (per-change ticket identifier, always-plan-mode, pre-commit,
+`/run-tests` CI comments) do **not** apply to changes made here. Those
+instructions only exist inside a Codespace, where `remote-codespace-setup.sh`
+installs `odoo-agent.md` as the global agent file — they are never in force
+while working on this repository. This repo has no CI pipeline; never comment
+`/run-tests` on a `dev-env` push or PR.
+
+Use plain, descriptive commit messages in the style of the existing history,
+ending with a `Co-Authored-By` trailer naming the model that authored the
+change. Only commit or push when I ask.

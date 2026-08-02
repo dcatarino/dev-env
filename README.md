@@ -41,9 +41,12 @@ order:
 The final step clones or updates `dev-env` inside the Codespace and runs
 `remote-codespace-setup.sh` there. This installs the shared skills and agent
 instructions, GitHub CLI, and the Playwright/Chromium browser runtime
-automatically; the remote installer does not need to be run on the local
-computer. Tool installation is best-effort so a temporary package-source
-failure does not prevent the agent configuration from being refreshed.
+automatically. It also installs `pre-commit` when needed and warms the hook
+environments for every Git repository under `/workspaces` with a root
+`.pre-commit-config.yaml` or `.yml`, including nested submodules. The remote
+installer does not need to be run on the local computer. Tool installation is
+best-effort so a temporary package-source failure does not prevent the agent
+configuration from being refreshed.
 
 Every time either launcher opens a Codespace, it also makes the already
 forwarded Odoo port `8069` public. Cursor receives its open request and starts

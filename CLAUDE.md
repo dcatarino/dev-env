@@ -52,8 +52,9 @@ skills describe.
   token-sync helper into `~/.local/bin`. It must not install skills or agent
   instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
-  inside a Codespace. Both launchers update the remote `dev-env` checkout and
-  invoke this script automatically.
+  inside a Codespace, then warms `pre-commit` environments for configured Git
+  repositories under `/workspaces`. Both launchers update the remote `dev-env`
+  checkout and invoke this script automatically.
 - `README.md` — human-facing overview.
 
 ## Editing development helpers

@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Push the local Claude Code OAuth token (from `claude setup-token`) to
+# GitHub Codespaces as a per-user secret, so a Codespace can authenticate
+# Claude Code non-interactively without the token ever being committed to
+# this repo, copied over SSH, or written to disk anywhere.
+#
+# `gh secret set --user` encrypts the value locally before it leaves this
+# machine and GitHub injects it as the CLAUDE_CODE_OAUTH_TOKEN environment
+# variable into Codespaces for the repositories it's scoped to. The token
+# itself is never accepted as a command-line argument here (that would leak
+# into shell history and `ps`); it is read from an already-exported
+# CLAUDE_CODE_OAUTH_TOKEN or prompted for with hidden input, then piped
+# straight into `gh secret set`'s stdin.
+#
+# Usage: sync-claude-token-to-codespace [owner/repo ...]
+#   With no arguments, choose from the repositories behind your current
+#   Codespaces.
+
+set -euo pipefail
+
+die() {
+  printf 'sync-claude-token-to-codespace: %s\n' "$*" >&2
+  exit 1
+}
+
+command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  printf 'Usage: sync-claude-token-to-codespace [owner/repo ...]\n'
+  printf 'Push CLAUDE_CODE_OAUTH_TOKEN to GitHub as a Codespaces user secret.\n'
+  printf 'With no arguments, choose from repositories behind your Codespaces.\n'
+  exit 0
+fi
+
+declare -a repos
+
+if (( $# > 0 )); then
+  repos=("$@")
+else
+  mapfile -t repos < <(
+    gh codespace list --json repository --jq '.[].repository' | sort -u
+  )
+  (( ${#repos[@]} > 0 )) \
+    || die "your GitHub account has no Codespaces; pass owner/repo explicitly"
+
+  if (( ${#repos[@]} > 1 )); then
+    [[ -r /dev/tty && -w /dev/tty ]] \
+      || die "no terminal is available; pass owner/repo explicitly"
+
+    printf 'Choose a repository to grant the secret to:\n\n' >/dev/tty
+    idx=0
+    for repo in "${repos[@]}"; do
+      idx=$((idx + 1))
+      printf '  %2d) %s\n' "$idx" "$repo" >/dev/tty
+    done
+
+    while :; do
+      printf '\nSelection [1-%d, a for all, q to cancel]: ' "${#repos[@]}" >/dev/tty
+      IFS= read -r choice </dev/tty || die "selection cancelled"
+      case "$choice" in
+        q|Q) die "selection cancelled" ;;
+        a|A) break ;;
+        *)
+          if [[ "$choice" =~ ^[0-9]+$ ]] \
+            && (( choice >= 1 && choice <= ${#repos[@]} )); then
+            repos=("${repos[$((choice - 1))]}")
+            break
+          fi
+          printf 'Please enter a number from 1 to %d, "a", or "q".\n' \
+            "${#repos[@]}" >/dev/tty
+          ;;
+      esac
+    done
+  fi
+fi
+
+repo_list=$(IFS=,; printf '%s' "${repos[*]}")
+
+# Prefer a token already exported in this shell so nothing new is typed;
+# fall back to a hidden prompt so the value never appears in shell history.
+token=${CLAUDE_CODE_OAUTH_TOKEN:-}
+if [[ -z "$token" ]]; then
+  [[ -r /dev/tty && -w /dev/tty ]] \
+    || die "no terminal available to read the token; export CLAUDE_CODE_OAUTH_TOKEN first"
+  printf 'Paste the token from `claude setup-token` (input hidden): ' >/dev/tty
+  IFS= read -rs token </dev/tty
+  printf '\n' >/dev/tty
+fi
+
+[[ -n "$token" ]] || die "no token provided"
+
+printf 'Setting CLAUDE_CODE_OAUTH_TOKEN as a Codespaces user secret for: %s\n' \
+  "$repo_list"
+printf '%s' "$token" | gh secret set CLAUDE_CODE_OAUTH_TOKEN --user --repos "$repo_list"
+unset token
+
+printf 'Done. Codespaces already running must be stopped and restarted (not\n'
+printf 'just reconnected) to pick up the new environment variable.\n'

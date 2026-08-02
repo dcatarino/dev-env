@@ -88,6 +88,77 @@ install_gh() {
 
 install_gh || echo "warning: gh install failed; open a PR manually or rerun setup"
 
+# --- Pre-commit -------------------------------------------------------------
+# Odoo repositories use several Python and Node hooks.  The first `pre-commit
+# run` otherwise spends a long time cloning and building their environments,
+# which delays agents before they can start validation.  Prepare every opted-in
+# checkout under /workspaces, including nested Git submodules, during the
+# background Codespace bootstrap instead.
+install_pre_commit() {
+  if command -v pre-commit >/dev/null 2>&1; then
+    echo "pre-commit already installed: $(pre-commit --version)"
+    return 0
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is unavailable; cannot install pre-commit" >&2
+    return 1
+  fi
+
+  echo "installing pre-commit..."
+  python3 -m pip install --user pre-commit || return 1
+  hash -r
+  command -v pre-commit >/dev/null 2>&1
+}
+
+warm_pre_commit_hooks() {
+  local config repo known_repo
+  local -a repos=()
+
+  [[ -d /workspaces ]] || {
+    echo "/workspaces is unavailable; skipping pre-commit hook preparation"
+    return 0
+  }
+
+  # A config belongs to the repository only when it is at that repository's
+  # root. This avoids treating vendored or fixture configs as projects.
+  while IFS= read -r -d '' config; do
+    repo=$(dirname "$config")
+    if git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+      && [[ "$(git -C "$repo" rev-parse --show-toplevel)" == "$repo" ]]; then
+      for known_repo in "${repos[@]}"; do
+        [[ "$known_repo" == "$repo" ]] && continue 2
+      done
+      repos+=("$repo")
+    fi
+  done < <(
+    find /workspaces \
+      -path '*/.git' -prune -o \
+      -type f \( -name .pre-commit-config.yaml -o -name .pre-commit-config.yml \) \
+      -print0
+  )
+
+  if (( ${#repos[@]} == 0 )); then
+    echo "No /workspaces Git repositories use pre-commit."
+    return 0
+  fi
+
+  echo "preparing pre-commit hook environments..."
+  for repo in "${repos[@]}"; do
+    if (cd "$repo" && pre-commit install-hooks); then
+      echo "prepared: $repo"
+    else
+      echo "warning: pre-commit hook preparation failed for $repo" >&2
+    fi
+  done
+}
+
+if install_pre_commit; then
+  warm_pre_commit_hooks
+else
+  echo "warning: pre-commit install failed; hooks will prepare on first use" >&2
+fi
+
 # --- Browser automation (Playwright + Chromium) -----------------------------
 # Browser-capable agents need a real browser runtime for autonomous Odoo UI
 # checks. Pin Playwright because its package and downloaded browser build must

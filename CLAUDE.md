@@ -3,8 +3,9 @@
 This is my personal **development environment repository**, shared across Claude
 Code, Codex, and Cursor. It is the source of truth for reusable skills, shared
 Odoo agent instructions, and local development helpers. `setup.sh` symlinks the
-local launcher into the command path, while `remote-codespace-setup.sh` installs
-skills and agent instructions inside Codespaces.
+local launchers and helpers into the command path, while
+`remote-codespace-setup.sh` installs skills and agent instructions inside
+Codespaces.
 
 ## What working in this repo means
 
@@ -41,8 +42,15 @@ skills describe.
   and remote bootstrap implementation. The bootstrap order is Claude Code,
   NVM/Node 22, Codex, then cloning and running this repository's remote setup.
   Its remote files live under `/tmp`; it must not change the selected project.
-- `setup.sh` — local-only installer that symlinks both launchers into
-  `~/.local/bin`. It must not install skills or agent instructions locally.
+- `sync-claude-token-to-codespace` — local-only helper that pushes the local
+  Claude Code OAuth token (`claude setup-token`) to GitHub as a Codespaces
+  user secret (`gh secret set --user`), scoped to chosen repositories. Never
+  accepts the token as a CLI argument or writes it to disk; reads it from
+  `CLAUDE_CODE_OAUTH_TOKEN` or a hidden prompt and pipes it to `gh` over
+  stdin.
+- `setup.sh` — local-only installer that symlinks the launchers and the
+  token-sync helper into `~/.local/bin`. It must not install skills or agent
+  instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
   inside a Codespace. Both launchers update the remote `dev-env` checkout and
   invoke this script automatically.

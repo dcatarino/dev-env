@@ -1,7 +1,7 @@
 ---
 name: development-request
 description: This skill should be used when the user invokes /development-request, explicitly asks to retrieve a live 360ERP Odoo development request, helpdesk ticket, or project task, or asks to analyse, plan, implement, test, or review one from supplied context. It gates the connected 360 ERP Odoo MCP behind explicit live-data authorization.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Analyse and implement a development request
@@ -109,9 +109,6 @@ If the model is unknown:
 Use `fields_get` before making model or field claims or when a requested field is
 not accepted. Odoo databases and custom modules can expose different fields.
 
-Completion criterion: the primary record's model, ID, name, and relevant relation
-IDs are confirmed.
-
 ## Step 2 — Read the record and its direct relations
 
 Read the fields below when they exist. If `fields_get` shows a field is absent,
@@ -154,9 +151,6 @@ For `project.task`, read at least:
 
 Expand parent tasks, subtasks, dependencies, sibling requests, or project records
 only when they materially change scope.
-
-Completion criterion: the primary record and every directly relevant ticket or
-task relation have been read.
 
 ## Step 3 — Reconstruct the complete chatter
 
@@ -207,10 +201,6 @@ Identify:
 - the latest explicit acceptance criteria;
 - unanswered questions that materially change implementation.
 
-Completion criterion: all relevant chatter has been retrieved and ordered, or an
-exact access or size limitation has been stated; the current requirement is
-supported by dated evidence.
-
 ## Step 4 — Handle privacy and attachments
 
 Never expose:
@@ -235,9 +225,6 @@ For each substantive message with attachments:
 Screenshots, logs, sample files, and documents can be requirement evidence. A
 filename alone is not evidence of its contents.
 
-Completion criterion: every relevant attachment is inspected or explicitly
-listed as unavailable or not needed.
-
 ## Step 5 — Resolve the customer environment
 
 When `customer_environment_id` exists, inspect its relation model and fields,
@@ -258,9 +245,6 @@ repository, branch context, and hosting type. Do not assume Odoo 18 merely
 because the default Codespace workspace contains Odoo 18 source. If ticket prose
 conflicts with the environment record, report the mismatch.
 
-Completion criterion: Odoo major version, repository, hosting context, and
-relevant environment are known, or their absence is identified as a blocker.
-
 ## Step 6 — Verify existing analysis
 
 `dev_description`, AI summaries, consultant notes, or chatter may contain a
@@ -276,9 +260,6 @@ previous AI build plan. Treat it as a hypothesis:
 - preserve useful findings without inheriting unsupported certainty.
 
 Do not call a plan verified merely because it is detailed.
-
-Completion criterion: every reused conclusion has independent support and any
-superseded claim is marked as such.
 
 ## Step 7 — Produce the functional and technical assessment
 
@@ -303,22 +284,13 @@ Choose based on correctness, not apparent effort. Do not force configuration whe
 code is required, and do not create a module when an existing module owns the
 behaviour and is the correct dependency boundary.
 
-When relevant, inspect:
-
-- the proper extension hook instead of controller duplication or monkeypatching;
-- server-side enforcement as well as user-interface feedback;
-- ORM constraints and transaction behaviour;
-- access rights, record rules, `sudo()`, and portal/public-user boundaries;
-- multi-company, multi-website, language, currency, and timezone behaviour;
-- computed-field dependencies and stale-cache risks;
-- compatibility with the customer's Odoo major version;
-- translations, migrations, and data cleanup;
-- performance and external API failure handling.
+The blind spots that recur on this codebase, worth an explicit check: the
+proper extension hook instead of controller duplication or monkeypatching;
+server-side enforcement behind the UI feedback; `sudo()`, record rules, and
+portal/public-user boundaries; multi-company and multi-website behaviour; and
+stale computed-field caches.
 
 Do not name exact files or methods before repository inspection.
-
-Completion criterion: one recommended solution is tied to the confirmed
-requirement and real extension points, with material risks identified.
 
 ## Step 8 — Inspect and change the repository when requested
 
@@ -339,19 +311,12 @@ Perform this step for code-level planning, implementation, or verification:
    approval.
 7. Add or update focused regression coverage where practical, then implement the
    smallest coherent change.
-8. Follow repository validation rules. Do not run Odoo unit tests unless the user
-   explicitly asks; when asked, use `run-odoo-tests`. Use `test-odoo-ui` when the
-   user requests end-to-end UI verification.
+8. Follow repository validation rules; tests stay gated as usual.
 9. Review the final diff for unrelated changes, secrets, PII, security impact,
    version compatibility, and upgrade consequences.
 
-Never fabricate repository contents, reproduction results, or test output. If
-source access, dependencies, or a runnable environment are missing, state the
+If source access, dependencies, or a runnable environment are missing, state the
 exact blocker and use the strongest available static verification.
-
-Completion criterion: the requested code work is complete, every changed file is
-accounted for, and all verification actually performed is reported with its real
-result.
 
 ## Output modes
 
@@ -389,7 +354,7 @@ Lead with the verified result, then report:
 
 Keep the output concise unless the user requests a full technical report.
 
-## Common pitfalls
+## Gotchas specific to this data
 
 1. **Reading only `dev_description`.** It can be generated or stale. Read the
    ticket or task, relations, and complete chatter.
@@ -399,31 +364,6 @@ Keep the output concise unless the user requests a full technical report.
    notifications can contain decisive context.
 4. **Repeating secrets or customer contact details.** Strip tokenized URLs and
    unnecessary PII.
-5. **Accepting a detailed AI plan without code verification.** Detail is not
-   evidence.
-6. **Inspecting the wrong repository or Odoo version.** Resolve the customer
-   environment first.
-7. **Solving only the visible UI symptom.** Check server-side enforcement and
-   bypass paths.
-8. **Overengineering.** Prefer the smallest complete change in the existing
-   ownership boundary.
-9. **Writing back too early.** Analysis and local implementation do not authorize
-   Odoo, GitHub, staging, or production writes.
-10. **Claiming success without verification.** Report real execution or the exact
-    limitation.
-
-## Verification checklist
-
-- [ ] Primary record model and ID verified
-- [ ] Directly related ticket and task records read
-- [ ] Complete relevant chatter retrieved, ordered, and filtered after retrieval
-- [ ] Newer clarifications reconciled with the initial description
-- [ ] Relevant attachments inspected or accounted for
-- [ ] Sensitive values and unnecessary PII excluded
-- [ ] Customer environment, Odoo version, and repository resolved
-- [ ] Existing AI analysis independently verified
-- [ ] Facts, inferences, and open questions separated
-- [ ] Recommended solution is the smallest maintainable complete fix
-- [ ] Repository rules read before edits
-- [ ] Requested implementation verified with real checks
-- [ ] No unauthorized Odoo, GitHub, staging, or production write occurred
+5. **Inspecting the wrong repository or Odoo version.** Resolve the customer
+   environment first — the default Codespace workspace is Odoo 18 regardless of
+   what the customer runs.

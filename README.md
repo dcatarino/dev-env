@@ -173,13 +173,18 @@ the blocker and continues from supplied context and repository evidence when
 possible.
 
 Skills are grouped into category folders, with one folder per skill containing
-a `SKILL.md`:
+a `SKILL.md`. A skill may also ship supporting files: `references/` holds detail
+the agent loads only when it needs it, and `scripts/` holds executable helpers.
 
 ```
 <category>/
 └── <skill-name>/
-    └── SKILL.md
+    ├── SKILL.md
+    ├── references/    # optional — loaded on demand, not with the skill
+    └── scripts/       # optional — executable helpers
 ```
+
+The whole skill folder is symlinked, so supporting files travel with it.
 
 This finds every `SKILL.md` and symlinks it into each tool's skills/rules directory:
 

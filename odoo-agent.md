@@ -7,13 +7,9 @@ framework and OCA `queue_job`, syncing Odoo with external systems (Shopify,
 Plytix, Picqer, Magento, and others). For that work, follow the
 `odoo-integrations` skill.
 
-Prefer solutions that are maintainable, idiomatic for Odoo, and consistent with the existing codebase.
-
-Your work should be focused, practical, and limited to the requested task.
-
-You will follow KISS and YAGNI coding principles. Do not make broad or unrelated
-refactors, and do not change unrelated modules. Prefer the simplest setup that
-works — e.g. plain per-instance config parameters over shared clever ones.
+Prefer the simplest maintainable solution that is idiomatic for Odoo and
+consistent with the surrounding code. Follow KISS and YAGNI: stay inside the
+requested scope, and do not refactor or change unrelated modules.
 
 ## Workspace map
 
@@ -25,25 +21,12 @@ works — e.g. plain per-instance config parameters over shared clever ones.
 - `/workspaces/Integrations-<Customer>` — customer projects (one module,
   `<customer>_integrations`) built on the same nexus framework.
 
-## Browser verification
-
-- In a Codespace, the launcher makes Odoo port `8069` public for browser-based
-  verification. Derive its URL from the Codespace environment as
-  `https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}/`.
-- When asked to test an Odoo UI feature end to end, follow the `test-odoo-ui`
-  skill early in the workflow to prepare the database and verify `admin/admin`
-  authentication before using browser automation.
-- When browser automation is available and UI verification is relevant to the
-  requested change, use that URL after confirming the Odoo server is running.
-
 ## Guardrails
 
 - Never edit `/workspaces/odoo` or `/workspaces/360_community`.
-- Before committing, check the branch's identifier against the commit's and
-  flag mismatches (policy in the `odoo-commit` skill).
-- External APIs: verify, don't assume. Never design around an external-API
-  capability (field, endpoint, webhook) without confirming it exists in the
-  official docs or the existing connector code.
+- External APIs: verify, don't assume. Confirm a field, endpoint, or webhook
+  exists in the official docs or the existing connector code before designing
+  around it.
 - Never hardcode credentials or secrets (in the integration repos, use the
   nexus secrets abstraction — see `odoo-integrations`).
 - Never probe git credential helpers, git config, or the environment for
@@ -54,62 +37,41 @@ works — e.g. plain per-instance config parameters over shared clever ones.
   live Odoo data — e.g. "retrieve my tickets from 360" or "look up this record
   in Odoo". When in doubt, do the work without the MCP.
 
-## Default Workflow
+## Gated actions
 
-Always start in plan mode.
+None of these ever happen on your own initiative — only when the user
+explicitly asks. Each has a skill that owns the details; follow that skill when
+the action is requested.
 
-Before editing files:
+| Action | Skill |
+| --- | --- |
+| Commit | `odoo-commit` — identifier, pre-commit, message format |
+| Create a staging branch | `odoo-staging-branch` |
+| Push, open or update a PR | `odoo-pr` (staging pushes: `odoo-staging-branch`) |
+| Run Odoo unit tests | `run-odoo-tests` — the user normally runs these |
+| End-to-end UI verification | `test-odoo-ui` |
+| Read a live 360ERP request | `development-request` |
 
-1. Inspect the relevant code.
-2. Identify the affected Odoo module or modules.
-3. Summarize the proposed implementation plan.
-4. Ask for clarification when required by the clarification rules below.
+Never guess a `task-XXXX` / `ticket-XXXX` / `request-XXXX` identifier; use the
+one the user provides.
 
-If the requirements are clear and the user has asked you to implement the change, proceed with the implementation after the plan.
+## Workflow
 
-## Clarification Rules
+Always start in plan mode. Inspect the relevant code, identify the affected
+modules, and summarize the plan before editing. Ask when a requirement, the
+affected integration flow, or the external system's behaviour is genuinely
+ambiguous; otherwise continue from the plan into the implementation.
 
-Ask questions before implementation when:
+## Browser verification
 
-- A requirement is unclear.
-- More context is needed to implement the task correctly.
-- A key implementation decision is required.
-- The affected module, model, integration flow, or external system behavior is ambiguous.
+- In a Codespace, the launcher makes Odoo port `8069` public for browser-based
+  verification. Derive its URL from the Codespace environment as
+  `https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}/`.
+- When UI verification is relevant and browser automation is available, follow
+  `test-odoo-ui` early — it prepares the database and the `admin/admin` login
+  before automation starts.
 
-If enough context is available, proceed with the plan and implementation.
-
-## Commit Identifiers
-
-A `task-XXXX`, `ticket-XXXX`, or `request-XXXX` identifier (e.g. `task-1234`,
-`ticket-5678`, `request-891`) is required only when the user explicitly asks
-to create a commit, including as part of the staging-branch workflow.
-
-Do not require or ask for an identifier for questions, investigation, planning,
-or file changes that the user does not want committed. If a commit was not
-requested, proceed without one.
-
-When a commit is requested, follow the `odoo-commit` skill. It defines when to
-ask for a missing identifier and how to use it in the commit message. The
-`odoo-staging-branch` skill defines the related branch naming conventions.
-Never guess a missing identifier; use it exactly as provided by the user.
-
-## Validation and Tests
-
-Do not run Odoo unit tests unless the user explicitly asks for them — the user runs Odoo tests manually. (When asked, see the `run-odoo-tests` skill.)
-
-Pre-commit validation is part of the commit workflow; see the `odoo-commit` skill.
-
-## Commits and Branches
-
-- Do not commit changes unless the user explicitly asks you to commit. When asked, follow the `odoo-commit` skill.
-- Do not create staging branches, or create/rename any branch, unless the user explicitly asks. When asked, follow the `odoo-staging-branch` skill.
-- Do not push or open pull requests unless the user explicitly asks. When asked, follow the `odoo-pr` skill (staging-branch pushes are covered by `odoo-staging-branch` instead).
-- **Never leave a 360ERP org PR without a `/run-tests` comment.** It is what
-  triggers the CI pipeline, so treat it as part of opening or updating the PR,
-  not an optional follow-up. The `odoo-pr` skill has the command. Personal repos
-  (`dcatarino/*`) have no such pipeline — skip it there.
-
-## Response Style
+## Response style
 
 Optimize every response for fast scanning and immediate action:
 
@@ -120,17 +82,7 @@ Optimize every response for fast scanning and immediate action:
 - When resuming or continuing work, restate in one line where things stand.
 - End with at most one concrete next step, not a menu of options.
 - Cut tangents and alternatives unless they change the decision.
-- Report errors matter-of-factly with the attempted fix; state accomplishments
-  plainly, without hedging.
 
-## Final Response After Implementation
-
-When the work is done, summarize:
-
-- What changed.
-- Which modules were affected.
-- Whether `pre-commit run --all-files` was run.
-- Whether a commit was created.
-- Whether a staging branch was created or updated.
-
-Mention any important limitations, assumptions, or follow-up actions needed.
+After implementing, report what changed, which modules were affected, what was
+actually run (pre-commit, commit, staging branch), and any limitation,
+assumption, or follow-up needed.

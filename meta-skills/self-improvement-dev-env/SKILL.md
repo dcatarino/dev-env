@@ -1,7 +1,7 @@
 ---
 name: self-improvement-dev-env
 description: Manual-only skill (invoke with /self-improvement-dev-env) that improves the dev-env repo based on recent agent sessions. Covers mining auto-memory and Claude session transcripts for recurring errors and corrections, deciding what belongs in the always-loaded prompt vs a skill vs an on-demand reference, the editing conventions, and the commit/push/PR workflow specific to the personal dev-env repo (gh auth bypass).
-version: 1.1.0
+version: 1.2.0
 disable-model-invocation: true
 ---
 
@@ -151,17 +151,22 @@ merge would revert the live prompts/skills. After the merge:
 `git checkout main && git pull`, then re-run the installer if skills were
 added or removed.
 
-## Known gap: memory does not survive a Codespace rebuild
+## Memory persistence
 
-`remote-codespace-setup.sh` symlinks the skills and `CLAUDE.md` out of the
-`dev-env` checkout so they persist, but nothing persists
-`~/.claude/projects/*/memory/`. A Codespace rebuild discards every memory the
-agent wrote, which also shrinks what Step 1 has to mine.
+Memory survives Codespace rebuilds: `persist-agent-memory.sh` symlinks
+`~/.claude/projects/*/memory/` into `dev-env/memory/`, so Step 1 can mine memory
+written in earlier Codespaces, not just the current one. The repository is
+private because that directory holds customer facts — never make it public
+again while it tracks memory, and never write credentials or personal contact
+details into a memory file (`memory/README.md` has the rules).
 
-This is unresolved on purpose — the obvious fix (tracking a `memory/` directory
-in this repo and symlinking it in) would commit learned facts about customer
-work to git, which is a call for the user to make, not a default to adopt.
-Raise it rather than silently implementing either side.
+If Step 1 finds no memory at all, check that the store is wired up before
+concluding there was nothing to learn:
+
+```bash
+bash /workspaces/dev-env/persist-agent-memory.sh
+ls /workspaces/dev-env/memory/*/
+```
 
 ## After finishing
 

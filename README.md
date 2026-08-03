@@ -146,6 +146,25 @@ Pass one or more repositories to skip the selector:
 sync-claude-token-to-codespace owner/repo
 ```
 
+## Persisted agent memory
+
+Claude Code writes auto-memory per project under
+`~/.claude/projects/<encoded-path>/memory/`. Inside a Codespace that is
+discarded on every rebuild, taking with it everything the agent learned about a
+customer's Odoo environment.
+
+`remote-codespace-setup.sh` runs `persist-agent-memory.sh`, which symlinks those
+directories into `memory/` in this checkout. Memory then survives rebuilds and
+follows you to any Codespace that runs the installer. It adopts memory Claude
+already wrote, pre-seeds a link for every Git repository under `/workspaces`,
+never overwrites an already-persisted file with a Codespace-local one, and is
+safe to rerun.
+
+**This repository is private because of that directory.** It holds learned facts
+about customer Odoo versions, module sets, and integration quirks. Credentials,
+tokens, and personal contact details must never be written there — see
+`memory/README.md` for the full rules.
+
 ## Layout
 
 - `open-codespace-cursor` — local Cursor/GitHub Codespaces launcher.
@@ -155,8 +174,10 @@ sync-claude-token-to-codespace owner/repo
   to Codespaces as a scoped GitHub user secret.
 - `setup.sh` — local-only installer for the launcher and sync commands.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
-  instructions, GitHub CLI, and browser automation, invoked automatically by
-  both launchers.
+  instructions, GitHub CLI, browser automation, and memory persistence,
+  invoked automatically by both launchers.
+- `persist-agent-memory.sh` — symlinks Claude Code's auto-memory into `memory/`.
+- `memory/` — persisted agent memory (private; see `memory/README.md`).
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 

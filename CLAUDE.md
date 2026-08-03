@@ -52,9 +52,18 @@ skills describe.
   token-sync helper into `~/.local/bin`. It must not install skills or agent
   instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
-  inside a Codespace, then warms `pre-commit` environments for configured Git
-  repositories under `/workspaces`. Both launchers update the remote `dev-env`
-  checkout and invoke this script automatically.
+  inside a Codespace, warms `pre-commit` environments for configured Git
+  repositories under `/workspaces`, and persists agent memory. Both launchers
+  update the remote `dev-env` checkout and invoke this script automatically.
+- `persist-agent-memory.sh` — symlinks Claude Code's per-project auto-memory
+  into `memory/` so it survives a Codespace rebuild. Invoked by
+  `remote-codespace-setup.sh`; test hooks let `tests/` drive it against a fake
+  tree.
+- `memory/` — persisted agent memory, one directory per project.
+  **This repository is private because of this directory** — it holds learned
+  facts about customer Odoo environments. Read `memory/README.md` before
+  changing the repository's visibility or the rules about what may be written
+  there.
 - `README.md` — human-facing overview.
 
 ## Editing development helpers
@@ -69,6 +78,9 @@ skills describe.
 - Keep the remote bootstrap safe to rerun and guarded against concurrent runs.
 - Keep local and remote responsibilities separate: `setup.sh` installs only the
   launcher locally; `remote-codespace-setup.sh` owns agent setup remotely.
+- `persist-agent-memory.sh` deletes the live memory directory after copying it
+  into the store. Keep its test (`tests/persist-agent-memory-test.sh`) passing
+  and never make the copy clobber an already-persisted file.
 - Preserve the intentional sandboxed Claude alias unless explicitly asked to
   change it.
 - Validate shell changes with `bash -n`; run `shellcheck` when available.

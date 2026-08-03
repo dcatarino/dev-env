@@ -28,7 +28,7 @@ skills describe.
 
 - `odoo-dev-skills/<skill-name>/SKILL.md` — one folder per skill (Odoo work).
 - `meta-skills/<skill-name>/SKILL.md` — skills about the dev environment itself
-  (e.g. `self-improvement-dev-env`).
+  (`self-improvement-dev-env`, `capture-customer-knowledge`).
 - `odoo-agent.md` — shared Odoo agent instructions.
   `remote-codespace-setup.sh` installs this as the global
   `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` inside Codespaces, so edits here

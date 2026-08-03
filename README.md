@@ -185,7 +185,10 @@ Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
 `odoo-staging-branch`, `odoo-pr`, `odoo-integrations`, `run-odoo-tests`,
 `test-odoo-ui`.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
-prompts/skills from recent agent session history.
+prompts/skills from recent agent session history; `capture-customer-knowledge` —
+scans the three most recent sessions (or the ones you name) for durable facts
+about a customer's Odoo environment and writes them to persisted memory, with
+credentials and personal data stripped.
 
 In Claude or Cursor, invoke `/development-request <record-ID-or-URL>` to retrieve
 and analyse a live 360 ERP request. The skill expects the 360 ERP Odoo MCP to be

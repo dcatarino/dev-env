@@ -48,6 +48,11 @@ installer does not need to be run on the local computer. Tool installation is
 best-effort so a temporary package-source failure does not prevent the agent
 configuration from being refreshed.
 
+The setup keeps one hash of every `SKILL.md` plus `odoo-agent.md`. If that hash
+changed since the previous Codespace opening, the bootstrap log says to start a
+new Claude, Codex, or Cursor chat; running chats cannot reload context that was
+read at startup. If the hash is unchanged, no reload is needed.
+
 Every time either launcher opens a Codespace, it also makes the already
 forwarded Odoo port `8069` public. Cursor receives its open request and starts
 the detached bootstrap before publishing the port, so this GitHub API request

@@ -47,6 +47,14 @@ link_instruction() {                       # $1 = target path
 link_instruction "$HOME/.claude/CLAUDE.md"
 link_instruction "$HOME/.codex/AGENTS.md"
 
+# Running agents keep the context they loaded at startup. A tiny content hash
+# tells users when this setup installed context that needs a fresh session.
+if [[ "$(bash "$REPO/check-agent-context-reload.sh")" == reload ]]; then
+  echo "Agent context changed: start a new Claude, Codex, or Cursor chat to reload it."
+else
+  echo "Agent context unchanged: existing chats do not need a reload."
+fi
+
 # Cursor: no reliable global rules *file* — the reliable global path is the
 # Settings UI. The reliable file-based option is a project-level rule, which
 # needs frontmatter (so it's generated, not symlinked). Provide a project dir

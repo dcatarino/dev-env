@@ -87,6 +87,23 @@ for command in curl psql sudo; do
   command -v "$command" >/dev/null || { echo "error: required command not found: $command" >&2; exit 2; }
 done
 
+publish_odoo_port() {
+  if [[ -z "${CODESPACE_NAME:-}" || -z "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]]; then
+    echo "error: browser-based UI testing requires CODESPACE_NAME and GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN to publish Odoo port 8069" >&2
+    exit 1
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "error: GitHub CLI (gh) is required to make Odoo port 8069 public" >&2
+    exit 1
+  fi
+
+  echo "Making Odoo port 8069 public for browser testing..."
+  if ! gh codespace ports visibility 8069:public -c "$CODESPACE_NAME"; then
+    echo "error: could not make Odoo port 8069 public. Ensure it is forwarded and that GitHub policy permits public ports." >&2
+    exit 1
+  fi
+}
+
 run_odoo_setup() {
   sudo -u odoo -i "$python_bin" "$odoo_bin" \
     -c "$config" -d "$database" --stop-after-init --no-http \
@@ -175,9 +192,8 @@ if session.get("uid") != 2 or session.get("db") != expected_database or session.
 PY
 
 browser_base_url="${base_url%/}"
-if [[ -n "${CODESPACE_NAME:-}" && -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]]; then
-  browser_base_url="https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
-fi
+publish_odoo_port
+browser_base_url="https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
 
 echo "Ready: database=$database user=admin uid=2"
 echo "ODOO_UI_URL=${browser_base_url}/web/login?db=${database}"

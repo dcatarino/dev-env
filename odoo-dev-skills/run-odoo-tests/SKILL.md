@@ -1,132 +1,71 @@
 ---
 name: run-odoo-tests
-description: This skill should be used when running Odoo unit tests in this codespace/dev environment — e.g. the user asks to run or verify tests for an Odoo module/addon, confirm a fix or PR passes, or set up a test database. Covers the odoo-bin command, the persistent test-DB workflow, targeting a specific test class or method, reading the pass/fail result, running long installs in the background, and fixing the "Address already in use" port conflict that happens when a dev server is already running.
-version: 1.0.0
+description: This skill should be used when running Odoo unit tests in this codespace/dev environment — e.g. the user asks to run or verify tests for an Odoo module/addon, confirm a fix or PR passes, or set up a test database. Covers the bundled runner script, the persistent test-DB workflow, targeting a specific test class or method, and the queue_job behaviour that affects test assertions.
+version: 1.1.0
 ---
 
 # Run Odoo unit tests
 
-This environment runs Odoo from source. Tests run at module install/upgrade
-time via `odoo-bin` with `--test-enable` and `--stop-after-init`.
+Only when the user explicitly asks — the user normally runs these manually.
+
+This environment runs Odoo from source. Tests run at module install/upgrade time
+via `odoo-bin` with `--test-enable` and `--stop-after-init`.
+
+## Run them
+
+From the project root (e.g. `/workspaces/<project>`), run the bundled script
+from this skill's directory:
+
+```bash
+bash scripts/run_odoo_tests.sh --modules MODULE
+```
+
+It creates the reusable database on first use, re-runs the module's tests on
+every later invocation, prints a parsed `PASSED`/`FAILED` summary, and exits
+non-zero on failure. Options:
+
+| Option | Purpose |
+| --- | --- |
+| `--modules a,b` | Technical module names (required). Dependencies install automatically. |
+| `--test-tags /MODULE:TestClass.test_05_x` | Run one class or method instead of the whole suite. |
+| `--database NAME` | Use a different reusable DB (default `odoo-test-1`). |
+| `--upgrade` | Use `-u` instead of `-i` — forces a code/schema reload when a test isn't picking up a model or field change. |
+| `--project-dir PATH` | If not running from the project root. |
+
+**The first run installs the dependency chain and takes minutes.** Launch that
+one as a background task and wait for its completion notification — never
+foreground-`sleep` or poll. Later runs are fast; run them normally.
+
+The script always binds free HTTP and gevent ports, so a running dev server
+cannot cause the `Address already in use` failure that otherwise makes
+`odoo-bin` exit before a single test runs.
 
 ## Environment facts
 
-- Python:   `/home/odoo/.pyenv/shims/python3`
-- odoo-bin: `/workspaces/odoo/odoo-bin`
-- Config:   `.codespace-env/odoo.conf` (relative to the project root, e.g.
-  `/workspaces/<project>`; or use the absolute path
-  `/workspaces/<project>/.codespace-env/odoo.conf`). It holds `addons_path` and
-  `db_user = odoo`.
-- Postgres: local, `-h 127.0.0.1 -U odoo` (no password needed here).
-- `MODULE` below = the addon you are testing (its technical name, e.g.
-  `acetate_product`). Dependencies install automatically.
+- Python:   `/home/odoo/.pyenv/shims/python3` (override with `ODOO_PYTHON`)
+- odoo-bin: `/workspaces/odoo/odoo-bin` (override with `ODOO_BIN`)
+- Config:   `<project>/.codespace-env/odoo.conf` — holds `addons_path` and
+  `db_user = odoo`
+- Postgres: local, `-h 127.0.0.1 -U odoo`, no password
 
-## Quick start (persistent reused DB — fastest iteration)
-
-Pick a long-lived test DB name (e.g. `odoo-test-1`) and reuse it.
-
-1. **Create + initialize the test DB once** (installs the module chain; odoo-bin
-   creates the DB if it doesn't exist):
-
-   ```bash
-   /home/odoo/.pyenv/shims/python3 /workspaces/odoo/odoo-bin \
-     -c .codespace-env/odoo.conf -d odoo-test-1 -i MODULE --stop-after-init
-   ```
-
-2. **Run the tests** (re-run this after each code change — no need to recreate
-   the DB):
-
-   ```bash
-   /home/odoo/.pyenv/shims/python3 /workspaces/odoo/odoo-bin \
-     -c .codespace-env/odoo.conf -d odoo-test-1 --test-enable -i MODULE \
-     --stop-after-init --log-level=test
-   ```
-
-   `-i MODULE` re-runs the module's tests on every invocation even when the
-   module is already installed (verified). `-u MODULE` is equivalent and also
-   forces a code/schema reload — use it if a test isn't picking up a model/field
-   change.
-
-`--log-level=test` makes each test log a `Starting <Class>.<method> ...` line and
-prints the final result summary.
-
-## Read the result
-
-The line to look for (success = `0 failed, 0 error(s)`):
-
-```
-... odoo.tests.result: 0 failed, 0 error(s) of 9 tests when loading database 'odoo-test-1'
-```
-
-When grepping a log, match both the summary and failure signatures so a crash
-isn't mistaken for success:
+Recreate the database from scratch only after an install-time change (manifest
+deps, XML data, security):
 
 ```bash
-grep -E "tests when loading|FAIL|ERROR:|AssertionError|Traceback" run.log | tail -40
+dropdb -h 127.0.0.1 -U odoo odoo-test-1
 ```
 
-## Run only specific tests
+## Reading a failure
 
-Use `--test-tags` to avoid running the whole module's suite:
+The script already tails the relevant lines and prints the full log path. Open
+that log for anything it did not surface — do not re-derive the grep, and do not
+read a bare `0 failed, 0 error(s)` as success without checking the test count
+was non-zero (the script does this).
 
-```bash
-# One test class
---test-tags /MODULE:TestClassName
-# A single method
---test-tags /MODULE:TestClassName.test_05_something
-```
-
-(The leading `/` scopes the tag to this module.) Combine with the run command in
-step 2.
-
-## Long installs: run in the background
-
-The first install (step 1) and full suites can take several minutes. Run them in
-the background and watch the log rather than blocking:
-
-```bash
-... odoo-bin ... > /tmp/odoo_test.log 2>&1   # via Bash run_in_background
-# then grep /tmp/odoo_test.log for "tests when loading" / "FAIL" / "Traceback"
-```
-
-## Gotcha: "Address already in use" (port conflict)
-
-If a dev server is already running (check `ps aux | grep odoo-bin`), the test run
-crashes at startup with:
-
-```
-OSError: [Errno 98] Address already in use
-```
-
-odoo-bin tries to bind the HTTP/gevent ports before loading modules, so **no
-tests run**. Fix by giving the test run its own free ports (and disabling workers
-/ cron for a clean, fast run):
-
-```bash
---http-port=8970 --gevent-port=8971 --workers=0 --max-cron-threads=0
-```
-
-Add these flags to the run command. They don't affect test behavior — they just
-avoid colliding with the running server.
-
-## Test database management
-
-odoo-bin creates the DB on `-i` if absent. To manage it manually:
-
-```bash
-createdb -h 127.0.0.1 -U odoo odoo-test-1     # fresh DB
-dropdb   -h 127.0.0.1 -U odoo odoo-test-1     # reset / clean up
-psql -h 127.0.0.1 -U odoo -lqt | cut -d'|' -f1   # list DBs
-```
-
-Recreate the DB from scratch only when you changed something install-time
-(manifest deps, XML data, security) and want a clean state; for ordinary Python
-test changes, just re-run step 2 against the existing DB.
-
-## Notes on queue_job (OCA) in tests
+## queue_job (OCA) in tests
 
 Modules depending on `queue_job` enqueue jobs via `with_delay()`. Under tests
 these are recorded as `queue.job` rows and not executed inline unless the test
 sets `queue_job__no_delay=True` in context (or the env enables no-delay). To
-assert a job was/wasn't enqueued, patch `with_delay` (e.g.
+assert a job was or wasn't enqueued, patch `with_delay` (e.g.
 `unittest.mock.patch.object(type(record), "with_delay")`) and check the mock.

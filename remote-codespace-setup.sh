@@ -64,6 +64,12 @@ fi
 echo "Cursor global rule has no reliable file — for a global rule, paste"
 echo "odoo-agent.md into Cursor Settings > Rules (User Rules)."
 
+# --- Agent memory -----------------------------------------------------------
+# Claude Code's auto-memory is discarded by a Codespace rebuild. Persist it in
+# this repository, the same way skills and instructions are persisted.
+bash "$REPO/persist-agent-memory.sh" \
+  || echo "warning: memory persistence failed; memory stays local to this Codespace" >&2
+
 # --- GitHub CLI (gh) --------------------------------------------------------
 # The odoo-pr skill needs `gh` (expects /usr/bin/gh), but codespaces don't
 # always ship it. Install via GitHub's official apt repo. Auth is automatic

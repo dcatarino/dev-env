@@ -71,8 +71,9 @@ skills describe.
 - Keep both launchers non-blocking. Cursor must launch before its detached
   bootstrap and synchronous port publication begin; terminal mode starts port
   publication and the bootstrap in the background, then connects immediately.
-- Keep Odoo port 8069 public on every launcher run and report its public URL so
-  browser-capable agents can verify the Codespace application.
+- Keep Odoo port 8069 private by default. Publish and report its public URL
+  only when a launcher is invoked with `--public`; `test-odoo-ui` publishes it
+  when browser verification needs it.
 - Preserve the dedicated `~/.ssh/codespaces` include instead of appending
   generated host blocks repeatedly to `~/.ssh/config`.
 - Keep the remote bootstrap safe to rerun and guarded against concurrent runs.

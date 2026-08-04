@@ -24,21 +24,32 @@ codespace_name_from_input() {
   printf '%s\n' "$input"
 }
 
-publish_odoo_port() {
+set_odoo_port_visibility() {
   local codespace_name=$1
+  local visibility=$2
   local odoo_port=8069
 
-  printf 'Making Odoo port %s public on %s...\n' \
-    "$odoo_port" "$codespace_name"
+  printf 'Making Odoo port %s %s on %s...\n' \
+    "$odoo_port" "$visibility" "$codespace_name"
   if ! gh codespace ports visibility \
-    "${odoo_port}:public" -c "$codespace_name"; then
-    printf 'Could not publish Odoo port %s. Ensure it is forwarded and that GitHub policy permits public ports.\n' \
-      "$odoo_port" >&2
+    "${odoo_port}:${visibility}" -c "$codespace_name"; then
+    printf 'Could not make Odoo port %s %s. Ensure it is forwarded and that GitHub policy permits this visibility.\n' \
+      "$odoo_port" "$visibility" >&2
     return 1
   fi
 
-  printf 'Odoo URL: https://%s-%s.app.github.dev/\n' \
-    "$codespace_name" "$odoo_port"
+  if [[ "$visibility" == "public" ]]; then
+    printf 'Odoo URL: https://%s-%s.app.github.dev/\n' \
+      "$codespace_name" "$odoo_port"
+  fi
+}
+
+publish_odoo_port() {
+  set_odoo_port_visibility "$1" public
+}
+
+make_odoo_port_private() {
+  set_odoo_port_visibility "$1" private
 }
 
 start_odoo_port_publication() {
@@ -49,6 +60,33 @@ start_odoo_port_publication() {
     trap '' HUP
     publish_odoo_port "$codespace_name"
   ) &
+}
+
+parse_open_codespace_arguments() {
+  local make_odoo_port_public=false
+  local codespace_argument=""
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --public)
+        make_odoo_port_public=true
+        ;;
+      -h|--help)
+        printf 'help\t\n'
+        return 0
+        ;;
+      -*)
+        return 2
+        ;;
+      *)
+        [[ -z "$codespace_argument" ]] || return 2
+        codespace_argument=$1
+        ;;
+    esac
+    shift
+  done
+
+  printf '%s\t%s\n' "$make_odoo_port_public" "$codespace_argument"
 }
 
 open_codespace_main() {
@@ -73,18 +111,19 @@ open_codespace_main() {
     die "unknown launcher: $launcher"
   fi
 
-  if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-    printf 'Usage: %s [codespace-name-or-url]\n' "$command_name"
+  local parsed_arguments make_odoo_port_public codespace_argument
+  parsed_arguments=$(parse_open_codespace_arguments "$@") \
+    || die "usage: $command_name [--public] [codespace-name-or-url]"
+  IFS=$'\t' read -r make_odoo_port_public codespace_argument <<<"$parsed_arguments"
+  if [[ "$make_odoo_port_public" == "help" ]]; then
+    printf 'Usage: %s [--public] [codespace-name-or-url]\n' "$command_name"
     if [[ "$launcher" == "cursor" ]]; then
       printf 'Select and open a GitHub Codespace in Cursor.\n'
     else
       printf 'Select and connect to a GitHub Codespace in this terminal.\n'
     fi
+    printf 'Use --public to make Odoo port 8069 publicly accessible.\n'
     exit 0
-  fi
-
-  if (( $# > 1 )); then
-    die "usage: $command_name [codespace-name-or-url]"
   fi
 
   local selection selected codespace_input codespace_name
@@ -92,9 +131,9 @@ open_codespace_main() {
   local item_name item_repository item_state item_last_used index choice
   local -a codespaces
 
-  if (( $# == 1 )); then
-    codespace_input=$(codespace_name_from_input "$1") \
-      || die "unsupported Codespace URL: $1"
+  if [[ -n "$codespace_argument" ]]; then
+    codespace_input=$(codespace_name_from_input "$codespace_argument") \
+      || die "unsupported Codespace URL: $codespace_argument"
     selection=$(gh codespace view -c "$codespace_input" --json name,repository \
       --jq '[.name, .repository] | @tsv')
     IFS=$'\t' read -r codespace_name repository_full_name <<<"$selection"
@@ -320,14 +359,25 @@ REMOTE_PREP
       "$remote_workspace"
 
     # Cursor receives its open request and bootstrap starts before the
-    # synchronous publication, so a slow GitHub API call cannot delay either.
+    # synchronous visibility update, so a slow GitHub API call cannot delay it.
     start_bootstrap
-    publish_odoo_port "$codespace_name"
+    if [[ "$make_odoo_port_public" == true ]]; then
+      publish_odoo_port "$codespace_name"
+    else
+      make_odoo_port_private "$codespace_name"
+    fi
     printf 'Background setup started; inside the Codespace, follow it with:\n'
     printf '  tail -f %s\n' "$remote_bootstrap_log"
   else
     printf 'Connecting to /workspaces on %s...\n' "$codespace_name"
-    start_odoo_port_publication "$codespace_name"
+    if [[ "$make_odoo_port_public" == true ]]; then
+      start_odoo_port_publication "$codespace_name"
+    else
+      (
+        trap '' HUP
+        make_odoo_port_private "$codespace_name"
+      ) &
+    fi
     start_bootstrap
     printf 'Background setup started; follow it from the Codespace with:\n'
     printf '  tail -f %s\n' "$remote_bootstrap_log"

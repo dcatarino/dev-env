@@ -1,7 +1,7 @@
 ---
 name: test-odoo-ui
 description: This skill should be used when testing an Odoo user-interface feature end to end in a Codespace. It prepares or reuses a test database through odoo-bin, installs or upgrades the affected modules, ensures Odoo is running, resets the test administrator to admin/admin, verifies web authentication, and hands the ready database URL to browser automation.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Test Odoo UI end to end
@@ -31,8 +31,11 @@ the requested feature with browser automation.
 
 The script uses the project's `.codespace-env/odoo.conf`, runs setup with the
 checked-out `/workspaces/odoo/odoo-bin`, starts Odoo through
-`.devcontainer/scripts/task_start_odoo.sh` when port 8069 is not ready, and
-prints `ODOO_UI_URL` after an `admin/admin` web login succeeds.
+`.devcontainer/scripts/task_start_odoo.sh` when port 8069 is not ready, makes
+the forwarded Odoo port public, and prints `ODOO_UI_URL` after an `admin/admin`
+web login succeeds. If GitHub cannot make the port public (for example because
+it is not forwarded or organization policy disallows public ports), it stops
+with a clear error instead of returning an unusable browser URL.
 
 ## Exercise the UI
 

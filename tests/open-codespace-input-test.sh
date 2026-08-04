@@ -47,8 +47,37 @@ assert_rejected "https://github.com/codespaces/$name/workspace"
 assert_rejected "http://$name.github.dev/"
 assert_rejected "https://example.com/codespaces/$name"
 
+assert_arguments() {
+  local expected=$1
+  shift
+  local actual
+
+  actual=$(parse_open_codespace_arguments "$@")
+  if [[ "$actual" != "$expected" ]]; then
+    printf 'Expected arguments %q to parse as %q, got %q\n' \
+      "$*" "$expected" "$actual" >&2
+    return 1
+  fi
+}
+
+assert_invalid_arguments() {
+  if parse_open_codespace_arguments "$@" >/dev/null; then
+    printf 'Expected arguments %q to be rejected\n' "$*" >&2
+    return 1
+  fi
+}
+
+assert_arguments $'false\t'
+assert_arguments $'false\t'"$name" "$name"
+assert_arguments $'true\t' --public
+assert_arguments $'true\t'"$name" --public "$name"
+assert_arguments $'true\t'"$name" "$name" --public
+assert_arguments $'help\t' --help
+assert_invalid_arguments --unknown
+assert_invalid_arguments "$name" another-codespace
+
 gh() {
-  local expected="codespace ports visibility 8069:public -c $name"
+  local expected="codespace ports visibility 8069:${expected_visibility:-public} -c $name"
   local actual="$*"
 
   if [[ "$actual" != "$expected" ]]; then
@@ -64,6 +93,15 @@ if [[ "$publish_output" != *"$expected_url"* ]]; then
     "$expected_url" "$publish_output" >&2
   exit 1
 fi
+
+expected_visibility=private
+private_output=$(make_odoo_port_private "$name")
+if [[ "$private_output" == *"Odoo URL:"* ]]; then
+  printf 'Expected private port output not to contain an Odoo URL, got %q\n' \
+    "$private_output" >&2
+  exit 1
+fi
+unset expected_visibility
 
 gh() {
   sleep 0.2

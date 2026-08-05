@@ -57,10 +57,12 @@ one the user provides.
 
 ## Workflow
 
-Always start in plan mode. Inspect the relevant code, identify the affected
-modules, and summarize the plan before editing. Ask when a requirement, the
-affected integration flow, or the external system's behaviour is genuinely
-ambiguous; otherwise continue from the plan into the implementation.
+Plan in proportion to the change. For a small, clear change, inspect the relevant
+code and give a short plan before editing. For non-trivial or ambiguous work,
+resolve the material decisions before implementation; use `plan-development`
+when the user asks for a thorough plan or wants the design stress-tested. Ask
+when a requirement, affected integration flow, or external system behaviour is
+genuinely ambiguous; otherwise continue from the plan into implementation.
 
 ## Browser verification
 

@@ -188,9 +188,19 @@ tokens, and personal contact details must never be written there — see
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
-Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
+Current Odoo skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
 `odoo-staging-branch`, `odoo-pr`, `odoo-integrations`, `run-odoo-tests`,
 `test-odoo-ui`.
+
+General engineering skills (`engineering-skills/`): `plan-development` turns
+non-trivial or ambiguous work into an implementation-ready plan with resolved
+decisions, vertical slices, and verification seams; `review-change` reviews a
+diff separately for requirement fidelity and engineering/Odoo risk.
+
+Productivity skills (`productivity-skills/`): `simplify-response` rewrites the
+agent's immediately previous response in shorter, plainer language without
+dropping decisions, warnings, or necessary commands.
+
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
 prompts/skills from recent agent session history; `capture-customer-knowledge` —
 scans the three most recent sessions (or the ones you name) for durable facts

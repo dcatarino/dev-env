@@ -27,6 +27,10 @@ skills describe.
 ## Layout
 
 - `odoo-dev-skills/<skill-name>/SKILL.md` — one folder per skill (Odoo work).
+- `engineering-skills/<skill-name>/SKILL.md` — general development planning and
+  review workflows shared across projects.
+- `productivity-skills/<skill-name>/SKILL.md` — general agent-communication
+  helpers.
 - `meta-skills/<skill-name>/SKILL.md` — skills about the dev environment itself
   (`self-improvement-dev-env`, `capture-customer-knowledge`).
 - `odoo-agent.md` — shared Odoo agent instructions.

@@ -20,9 +20,8 @@ Return:
 
 ## Implementation plan
 
-Add bounded steps naming the confirmed modules or components, tests, migration
-needs, and verification. Do not invent exact filenames or methods that have not
-been inspected.
+Read `planning.md` and return its implementation-plan schema. Do not invent
+exact filenames or methods that have not been inspected.
 
 ## Implementation or fix
 

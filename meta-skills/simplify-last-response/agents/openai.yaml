@@ -1,0 +1,7 @@
+interface:
+  display_name: "Simplify Last Response"
+  short_description: "Rewrite the last answer clearly and concisely"
+  default_prompt: "Use $simplify-last-response to rewrite your previous answer in clearer, shorter language."
+
+policy:
+  allow_implicit_invocation: false

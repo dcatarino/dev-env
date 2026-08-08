@@ -1,0 +1,7 @@
+interface:
+  display_name: "Odoo Development Request"
+  short_description: "Analyse and plan Odoo development work"
+  default_prompt: "Use $development-request to analyse this Odoo request and produce an evidence-backed implementation plan."
+
+policy:
+  allow_implicit_invocation: true

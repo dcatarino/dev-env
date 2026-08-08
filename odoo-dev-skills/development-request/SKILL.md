@@ -1,7 +1,7 @@
 ---
 name: development-request
 description: This skill should be used when the user invokes /development-request, explicitly asks to retrieve a live 360ERP Odoo development request, helpdesk ticket, or project task, or asks to analyse, plan, implement, test, or review one from supplied context. It gates the connected 360 ERP Odoo MCP behind explicit live-data authorization.
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Analyse and implement a development request
@@ -165,6 +165,10 @@ exact blocker and use the strongest available static verification.
 
 Follow `references/output-modes.md` for the three report shapes — analysis only,
 implementation plan, and implementation or fix.
+
+For a planning-only request, read `references/planning.md` and use its
+evidence-first implementation-plan schema. Planning authorizes neither live-data
+retrieval nor any gated action, including code edits and test execution.
 
 ## Gotchas specific to this data
 

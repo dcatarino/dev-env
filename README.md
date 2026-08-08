@@ -190,18 +190,29 @@ tokens, and personal contact details must never be written there — see
 
 Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
 `odoo-staging-branch`, `odoo-pr`, `odoo-integrations`, `run-odoo-tests`,
-`test-odoo-ui`.
+`test-odoo-ui`. `development-request` produces evidence-backed implementation
+plans with confirmed ownership, observable slices, and explicitly gated test
+execution.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
 prompts/skills from recent agent session history; `capture-customer-knowledge` —
 scans the three most recent sessions (or the ones you name) for durable facts
 about a customer's Odoo environment and writes them to persisted memory, with
-credentials and personal data stripped.
+credentials and personal data stripped; `simplify-last-response` — manually
+rewrites the immediately previous assistant response in shorter, plainer
+language.
 
 In Claude or Cursor, invoke `/development-request <record-ID-or-URL>` to retrieve
 and analyse a live 360 ERP request. The skill expects the 360 ERP Odoo MCP to be
 configured and authenticated in the Codespace; if it is unavailable, it reports
 the blocker and continues from supplied context and repository evidence when
 possible.
+
+To rewrite the immediately previous assistant response more simply, invoke it as:
+
+```text
+Claude or Cursor: /simplify-last-response
+Codex:            $simplify-last-response
+```
 
 Skills are grouped into category folders, with one folder per skill containing
 a `SKILL.md`. A skill may also ship supporting files: `references/` holds detail

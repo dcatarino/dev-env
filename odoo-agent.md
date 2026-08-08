@@ -31,11 +31,18 @@ requested scope, and do not refactor or change unrelated modules.
   nexus secrets abstraction — see `odoo-integrations`).
 - Never probe git credential helpers, git config, or the environment for
   tokens. For push/PR auth, follow the `odoo-pr` skill.
-- Do not call the 360 ERP Odoo MCP unless the user explicitly asks for it.
-  It rarely helps with development work, and doing Odoo development is not by
+- Do not initiate a connection to the 360 ERP Odoo MCP, list, discover, or
+  inspect its tools, or call it unless the user explicitly asks for live 360
+  ERP Odoo data. This governs model-initiated behavior; it cannot prevent
+  host-level connector registration or startup. Development work is not by
   itself a reason to use it. Only reach for it when the user clearly requests
   live Odoo data — e.g. "retrieve my tickets from 360" or "look up this record
   in Odoo". When in doubt, do the work without the MCP.
+- After every explicitly authorized push that successfully updates a remote
+  branch in a `360ERP/*` repository, post one fresh `/run-tests` comment if
+  that branch has an open PR. Also post it immediately after creating a PR.
+  An older `/run-tests` comment never counts for a newly pushed commit;
+  personal repositories do not receive this comment.
 
 ## Gated actions
 

@@ -1,7 +1,7 @@
 ---
 name: odoo-pr
 description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with a /run-tests comment, and the GitHub auth model (org token vs personal repos).
-version: 1.0.4
+version: 1.0.5
 ---
 
 # Open a pull request
@@ -32,19 +32,38 @@ gh pr create --base 18.0 \
   module(s), concise description.
 - The body briefly says what changed, why, and how it was validated.
 
-**Never leave a 360ERP org PR without a `/run-tests` comment.** It is what
-triggers the CI pipeline, so treat it as part of opening or updating the PR,
-not an optional follow-up:
+Immediately after creating the PR, post one fresh `/run-tests` comment. The
+initial push may have had no PR yet, so do not comment before creation and then
+again after it; comment once after the PR exists:
 
 ```bash
 gh pr comment <pr_number> --body "/run-tests"
 ```
 
+## Push/update a PR — 360ERP org repos
+
+After every explicitly authorized `git push` that succeeds **and updates the
+remote branch**, locate an open PR for the current branch. If one exists, post
+exactly one fresh `/run-tests` comment for that push action:
+
+```bash
+pr_number="$(gh pr list --head "$(git branch --show-current)" --state open --json number --jq '.[0].number')"
+if [ -n "$pr_number" ]; then
+  gh pr comment "$pr_number" --body "/run-tests"
+fi
+```
+
+- Do nothing when the branch has no open PR.
+- If the push is followed by PR creation, post the single comment immediately
+  after creating the PR instead of commenting twice for the same push action.
+- A `/run-tests` comment for an earlier commit never satisfies this rule for a
+  later remote-updating push.
+
 ## Create the PR — personal repos (e.g. `dcatarino/*`)
 
 PRs target `main`, use a plain descriptive title (no `[task-XXXX]` prefix,
 no task identifier needed), and there is no `/run-tests` pipeline — skip the
-CI comment. See the auth notes below for pushing.
+CI comment, including after pushes. See the auth notes below for pushing.
 
 ## Auth model
 

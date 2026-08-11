@@ -89,8 +89,6 @@ Use `open-codespace-cursor-ide` when you want Cursor's regular IDE/editor
 window. It opens the workspace through Cursor's remote protocol handler, which
 forces classic IDE routing instead of the newer Agents/Glass window. The
 launcher also focuses the new workspace window when `xdotool` is available.
-The misspelled compatibility alias `open-codespace-cusror-ide` is also
-installed.
 
 ## Open a Codespace in the terminal
 

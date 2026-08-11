@@ -104,7 +104,7 @@ open_codespace_main() {
 
   command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed"
   command -v ssh >/dev/null 2>&1 || die "OpenSSH client (ssh) is not installed"
-  if [[ "$launcher" == "cursor" ]]; then
+  if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
     command -v cursor >/dev/null 2>&1 \
       || die "Cursor's shell command is not installed"
   elif [[ "$launcher" != "terminal" ]]; then
@@ -117,7 +117,7 @@ open_codespace_main() {
   IFS=$'\t' read -r make_odoo_port_public codespace_argument <<<"$parsed_arguments"
   if [[ "$make_odoo_port_public" == "help" ]]; then
     printf 'Usage: %s [--public] [codespace-name-or-url]\n' "$command_name"
-    if [[ "$launcher" == "cursor" ]]; then
+    if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
       printf 'Select and open a GitHub Codespace in Cursor.\n'
     else
       printf 'Select and connect to a GitHub Codespace in this terminal.\n'
@@ -217,7 +217,7 @@ open_codespace_main() {
   # Use a non-empty sentinel because OpenSSH flattens remote command arguments
   # and does not preserve an empty positional argument.
   local remote_workspace=-
-  if [[ "$launcher" == "cursor" ]]; then
+  if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
     remote_workspace="/tmp/cursor-${codespace_name}.code-workspace"
   fi
   local remote_bootstrap=/tmp/open-codespace-bootstrap.sh
@@ -350,13 +350,47 @@ REMOTE_PREP
     ) >/dev/null 2>&1 &
   }
 
-  if [[ "$launcher" == "cursor" ]]; then
+  focus_cursor_ide_window() {
+    local workspace_name=$1
+
+    # Cursor's protocol handler normally focuses the window it opens, but some
+    # Linux window managers keep the previously active Agents window focused.
+    # xdotool is optional; when it is available, focus the workspace window
+    # created from this Codespace's uniquely named temporary workspace.
+    command -v xdotool >/dev/null 2>&1 || return 0
+
+    local window_id
+    for _ in {1..50}; do
+      window_id=$(xdotool search --class cursor \
+        --name "cursor-${workspace_name}" 2>/dev/null | tail -n 1)
+      if [[ -n "$window_id" ]]; then
+        xdotool windowactivate --sync "$window_id" >/dev/null 2>&1 || true
+        return 0
+      fi
+      sleep 0.1
+    done
+  }
+
+  if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
     printf 'Opening /workspaces/%s and /workspaces on %s in Cursor...\n' \
       "$repository_name" "$codespace_name"
 
-    cursor --new-window \
-      --remote "ssh-remote+${ssh_host}" \
-      "$remote_workspace"
+    if [[ "$launcher" == "cursor-ide" ]]; then
+      # Cursor 3.x can route the regular --remote workspace invocation into
+      # its Agents/Glass window when another Cursor process is already open.
+      # Its remote protocol handler explicitly forces classic IDE routing.
+      local cursor_remote_url
+      cursor_remote_url="cursor://vscode-remote/ssh-remote+${ssh_host}${remote_workspace}?windowId=_blank"
+      cursor --classic --open-url -- "$cursor_remote_url"
+
+      # The URL handler asks the window manager to focus the new window, but
+      # some Linux window managers leave the old Agents window active.
+      focus_cursor_ide_window "$codespace_name" >/dev/null 2>&1 &
+    else
+      cursor --new-window \
+        --remote "ssh-remote+${ssh_host}" \
+        "$remote_workspace"
+    fi
 
     # Cursor receives its open request and bootstrap starts before the
     # synchronous visibility update, so a slow GitHub API call cannot delay it.

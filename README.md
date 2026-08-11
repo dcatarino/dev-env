@@ -79,10 +79,18 @@ Pass a Codespace name or URL to skip the selector:
 
 ```bash
 open-codespace-cursor CODESPACE_NAME
+open-codespace-cursor-ide CODESPACE_NAME
 open-codespace-cursor --public CODESPACE_NAME
 open-codespace-cursor https://CODESPACE_NAME.github.dev/
 open-codespace-cursor https://github.com/codespaces/CODESPACE_NAME
 ```
+
+Use `open-codespace-cursor-ide` when you want Cursor's regular IDE/editor
+window. It opens the workspace through Cursor's remote protocol handler, which
+forces classic IDE routing instead of the newer Agents/Glass window. The
+launcher also focuses the new workspace window when `xdotool` is available.
+The misspelled compatibility alias `open-codespace-cusror-ide` is also
+installed.
 
 ## Open a Codespace in the terminal
 
@@ -175,6 +183,8 @@ tokens, and personal contact details must never be written there — see
 ## Layout
 
 - `open-codespace-cursor` — local Cursor/GitHub Codespaces launcher.
+- `open-codespace-cursor-ide` — local launcher that forces Cursor's classic
+  IDE/editor window for Remote SSH.
 - `open-codespace-terminal` — terminal-based Codespaces launcher.
 - `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
 - `sync-claude-token-to-codespace` — pushes the local Claude Code OAuth token

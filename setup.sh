@@ -9,6 +9,10 @@ mkdir -p "$LOCAL_BIN"
 
 # Keep the commands linked to this checkout so pulling dev-env updates them.
 ln -sfn "$REPO/open-codespace-cursor" "$LOCAL_BIN/open-codespace-cursor"
+ln -sfn "$REPO/open-codespace-cursor-ide" \
+  "$LOCAL_BIN/open-codespace-cursor-ide"
+ln -sfn "$REPO/open-codespace-cursor-ide" \
+  "$LOCAL_BIN/open-codespace-cusror-ide"
 ln -sfn "$REPO/open-codespace-terminal" "$LOCAL_BIN/open-codespace-terminal"
 ln -sfn "$REPO/sync-claude-token-to-codespace" \
   "$LOCAL_BIN/sync-claude-token-to-codespace"
@@ -23,5 +27,7 @@ if [[ -L "$LEGACY_COMMAND" ]] \
 fi
 
 echo "installed: $LOCAL_BIN/open-codespace-cursor"
+echo "installed: $LOCAL_BIN/open-codespace-cursor-ide"
+echo "installed: $LOCAL_BIN/open-codespace-cusror-ide"
 echo "installed: $LOCAL_BIN/open-codespace-terminal"
 echo "installed: $LOCAL_BIN/sync-claude-token-to-codespace"

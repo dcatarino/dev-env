@@ -39,6 +39,8 @@ skills describe.
 - `open-codespace-cursor-ide` — opens the same workspace through Cursor's
   remote protocol handler in the classic IDE/editor window, which is the
   reliable Remote SSH layout.
+- `open-codespace-cursor-mac` — opens the same workspace through macOS's
+  Cursor URL handler, without requiring Cursor's shell command.
 - `open-codespace-terminal` — starts the same detached bootstrap and connects
   the current terminal to `/workspaces` in the selected Codespace.
 - `open-codespace-common.sh` — shared Codespace selection, SSH configuration,

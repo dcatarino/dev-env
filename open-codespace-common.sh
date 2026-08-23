@@ -102,13 +102,40 @@ open_codespace_main() {
     exit 1
   }
 
+  local cursor_launcher=false
+  local cursor_ide=false
+  local mac_cursor=false
+  case "$launcher" in
+    cursor)
+      cursor_launcher=true
+      ;;
+    cursor-ide)
+      cursor_launcher=true
+      cursor_ide=true
+      ;;
+    cursor-mac)
+      cursor_launcher=true
+      mac_cursor=true
+      ;;
+    terminal)
+      ;;
+    *)
+      die "unknown launcher: $launcher"
+      ;;
+  esac
+
   command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed"
   command -v ssh >/dev/null 2>&1 || die "OpenSSH client (ssh) is not installed"
-  if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
+  if [[ "$mac_cursor" == true ]]; then
+    [[ "$(uname -s)" == "Darwin" ]] \
+      || die "open-codespace-cursor-mac must be run on macOS"
+    command -v open >/dev/null 2>&1 \
+      || die "macOS's open command is not available"
+    open -Ra Cursor >/dev/null 2>&1 \
+      || die "Cursor.app is not installed"
+  elif [[ "$cursor_launcher" == true ]]; then
     command -v cursor >/dev/null 2>&1 \
       || die "Cursor's shell command is not installed"
-  elif [[ "$launcher" != "terminal" ]]; then
-    die "unknown launcher: $launcher"
   fi
 
   local parsed_arguments make_odoo_port_public codespace_argument
@@ -117,7 +144,7 @@ open_codespace_main() {
   IFS=$'\t' read -r make_odoo_port_public codespace_argument <<<"$parsed_arguments"
   if [[ "$make_odoo_port_public" == "help" ]]; then
     printf 'Usage: %s [--public] [codespace-name-or-url]\n' "$command_name"
-    if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
+    if [[ "$cursor_launcher" == true ]]; then
       printf 'Select and open a GitHub Codespace in Cursor.\n'
     else
       printf 'Select and connect to a GitHub Codespace in this terminal.\n'
@@ -129,6 +156,7 @@ open_codespace_main() {
   local selection selected codespace_input codespace_name
   local repository_full_name repository_name
   local item_name item_repository item_state item_last_used index choice
+  local codespace_row
   local -a codespaces
 
   if [[ -n "$codespace_argument" ]]; then
@@ -140,7 +168,10 @@ open_codespace_main() {
   else
     # Do not use gh's interactive selector here: it requires its own stdout to
     # be a terminal, while this script needs to capture the selected value.
-    mapfile -t codespaces < <(
+    # macOS ships Bash 3.2, which does not provide mapfile/readarray.
+    while IFS= read -r codespace_row; do
+      [[ -n "$codespace_row" ]] && codespaces+=("$codespace_row")
+    done < <(
       gh codespace list --json name,repository,state,lastUsedAt \
         --jq '.[] | [.name, .repository, .state, .lastUsedAt] | @tsv'
     )
@@ -217,7 +248,7 @@ open_codespace_main() {
   # Use a non-empty sentinel because OpenSSH flattens remote command arguments
   # and does not preserve an empty positional argument.
   local remote_workspace=-
-  if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
+  if [[ "$cursor_launcher" == true ]]; then
     remote_workspace="/tmp/cursor-${codespace_name}.code-workspace"
   fi
   local remote_bootstrap=/tmp/open-codespace-bootstrap.sh
@@ -345,6 +376,7 @@ REMOTE_PREP
     # Detach both the local starter and remote bootstrap so setup survives the
     # launcher exiting or the interactive terminal connection closing.
     (
+      trap '' HUP
       ssh "$ssh_host" \
         "nohup bash '$remote_bootstrap' >'$remote_bootstrap_log' 2>&1 </dev/null &"
     ) >/dev/null 2>&1 &
@@ -371,11 +403,18 @@ REMOTE_PREP
     done
   }
 
-  if [[ "$launcher" == "cursor" || "$launcher" == "cursor-ide" ]]; then
+  if [[ "$cursor_launcher" == true ]]; then
     printf 'Opening /workspaces/%s and /workspaces on %s in Cursor...\n' \
       "$repository_name" "$codespace_name"
 
-    if [[ "$launcher" == "cursor-ide" ]]; then
+    if [[ "$mac_cursor" == true ]]; then
+      # The macOS Cursor app registers this protocol with LaunchServices. The
+      # URL opens a fresh classic remote workspace without requiring Cursor's
+      # shell command or Linux-only window-management tools.
+      local cursor_remote_url
+      cursor_remote_url="cursor://vscode-remote/ssh-remote+${ssh_host}${remote_workspace}?windowId=_blank"
+      open -a Cursor "$cursor_remote_url"
+    elif [[ "$cursor_ide" == true ]]; then
       # Cursor 3.x can route the regular --remote workspace invocation into
       # its Agents/Glass window when another Cursor process is already open.
       # Its remote protocol handler explicitly forces classic IDE routing.

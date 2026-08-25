@@ -90,6 +90,17 @@ window. It opens the workspace through Cursor's remote protocol handler, which
 forces classic IDE routing instead of the newer Agents/Glass window. The
 launcher also focuses the new workspace window when `xdotool` is available.
 
+On macOS, use the dedicated launcher:
+
+```bash
+open-codespace-cursor-mac
+```
+
+It uses macOS's `open -a Cursor` handoff for the `cursor://vscode-remote` URL,
+so it does not depend on the Linux-style `cursor --remote` command or on
+`xdotool`. It accepts the same `--public` flag and Codespace name/URL argument
+as the other launchers.
+
 ## Open a Codespace in the terminal
 
 From Warp or any other terminal, run:
@@ -183,6 +194,8 @@ tokens, and personal contact details must never be written there — see
 - `open-codespace-cursor` — local Cursor/GitHub Codespaces launcher.
 - `open-codespace-cursor-ide` — local launcher that forces Cursor's classic
   IDE/editor window for Remote SSH.
+- `open-codespace-cursor-mac` — macOS launcher that hands the remote URL to
+  Cursor through LaunchServices.
 - `open-codespace-terminal` — terminal-based Codespaces launcher.
 - `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
 - `sync-claude-token-to-codespace` — pushes the local Claude Code OAuth token

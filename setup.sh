@@ -11,6 +11,8 @@ mkdir -p "$LOCAL_BIN"
 ln -sfn "$REPO/open-codespace-cursor" "$LOCAL_BIN/open-codespace-cursor"
 ln -sfn "$REPO/open-codespace-cursor-ide" \
   "$LOCAL_BIN/open-codespace-cursor-ide"
+ln -sfn "$REPO/open-codespace-cursor-mac" \
+  "$LOCAL_BIN/open-codespace-cursor-mac"
 ln -sfn "$REPO/open-codespace-terminal" "$LOCAL_BIN/open-codespace-terminal"
 ln -sfn "$REPO/sync-claude-token-to-codespace" \
   "$LOCAL_BIN/sync-claude-token-to-codespace"
@@ -35,5 +37,6 @@ fi
 
 echo "installed: $LOCAL_BIN/open-codespace-cursor"
 echo "installed: $LOCAL_BIN/open-codespace-cursor-ide"
+echo "installed: $LOCAL_BIN/open-codespace-cursor-mac"
 echo "installed: $LOCAL_BIN/open-codespace-terminal"
 echo "installed: $LOCAL_BIN/sync-claude-token-to-codespace"

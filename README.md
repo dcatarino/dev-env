@@ -130,46 +130,6 @@ open-codespace-terminal https://CODESPACE_NAME.github.dev/
 open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 ```
 
-## Sync the Claude Code token to Codespaces
-
-Codespaces run `claude` non-interactively via the sandboxed alias installed by
-`remote-codespace-setup.sh`; without a token it falls back to an interactive
-login. To give it one, run `claude setup-token` locally, then:
-
-```bash
-sync-claude-token-to-codespace
-```
-
-This lists the repositories behind your current Codespaces, lets you pick one
-(or all), and pushes the token to GitHub as a **Codespaces user secret**
-scoped to the chosen repositories, using `gh secret set --user`. GitHub then
-injects it into matching Codespaces as the `CLAUDE_CODE_OAUTH_TOKEN`
-environment variable — the same variable `claude` reads for headless auth.
-
-This is deliberately the only sync path:
-
-- The token is never accepted as a command-line argument (that would leak
-  into shell history and `ps`); the script reads it from an already-exported
-  `CLAUDE_CODE_OAUTH_TOKEN` or a hidden prompt, then pipes it straight into
-  `gh secret set`'s stdin.
-- `gh` encrypts the value locally before it leaves this machine — it is never
-  written to this repository, copied over SSH, or held in a file anywhere.
-- It's scoped with `--repos` to only the repositories you select, not your
-  whole account.
-
-Codespaces already running must be stopped and restarted (not just
-reconnected) to pick up the secret as an environment variable. To rotate a
-token, run `claude setup-token` again and re-run this command; to revoke
-access entirely, remove the secret from
-https://github.com/settings/codespaces or with `gh secret delete
-CLAUDE_CODE_OAUTH_TOKEN --user`.
-
-Pass one or more repositories to skip the selector:
-
-```bash
-sync-claude-token-to-codespace owner/repo
-```
-
 ## Persisted agent memory
 
 Claude Code writes auto-memory per project under
@@ -198,9 +158,7 @@ tokens, and personal contact details must never be written there — see
   Cursor through LaunchServices.
 - `open-codespace-terminal` — terminal-based Codespaces launcher.
 - `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
-- `sync-claude-token-to-codespace` — pushes the local Claude Code OAuth token
-  to Codespaces as a scoped GitHub user secret.
-- `setup.sh` — local-only installer for the launcher and sync commands.
+- `setup.sh` — local-only installer for the launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
   instructions, GitHub CLI, browser automation, and memory persistence,
   invoked automatically by both launchers.

@@ -47,15 +47,8 @@ skills describe.
   and remote bootstrap implementation. The bootstrap order is Claude Code,
   NVM/Node 22, Codex, then cloning and running this repository's remote setup.
   Its remote files live under `/tmp`; it must not change the selected project.
-- `sync-claude-token-to-codespace` — local-only helper that pushes the local
-  Claude Code OAuth token (`claude setup-token`) to GitHub as a Codespaces
-  user secret (`gh secret set --user`), scoped to chosen repositories. Never
-  accepts the token as a CLI argument or writes it to disk; reads it from
-  `CLAUDE_CODE_OAUTH_TOKEN` or a hidden prompt and pipes it to `gh` over
-  stdin.
-- `setup.sh` — local-only installer that symlinks the launchers and the
-  token-sync helper into `~/.local/bin`. It must not install skills or agent
-  instructions locally.
+- `setup.sh` — local-only installer that symlinks the launchers into
+  `~/.local/bin`. It must not install skills or agent instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
   inside a Codespace, warms `pre-commit` environments for configured Git
   repositories under `/workspaces`, and persists agent memory. Both launchers

@@ -14,8 +14,6 @@ ln -sfn "$REPO/open-codespace-cursor-ide" \
 ln -sfn "$REPO/open-codespace-cursor-mac" \
   "$LOCAL_BIN/open-codespace-cursor-mac"
 ln -sfn "$REPO/open-codespace-terminal" "$LOCAL_BIN/open-codespace-terminal"
-ln -sfn "$REPO/sync-claude-token-to-codespace" \
-  "$LOCAL_BIN/sync-claude-token-to-codespace"
 
 # Remove the legacy link created by older versions without touching a regular
 # file or an unrelated symlink the user may have created under the same name.
@@ -39,4 +37,3 @@ echo "installed: $LOCAL_BIN/open-codespace-cursor"
 echo "installed: $LOCAL_BIN/open-codespace-cursor-ide"
 echo "installed: $LOCAL_BIN/open-codespace-cursor-mac"
 echo "installed: $LOCAL_BIN/open-codespace-terminal"
-echo "installed: $LOCAL_BIN/sync-claude-token-to-codespace"

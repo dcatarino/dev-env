@@ -130,6 +130,22 @@ open-codespace-terminal https://CODESPACE_NAME.github.dev/
 open-codespace-terminal https://github.com/codespaces/CODESPACE_NAME
 ```
 
+## Set up a Codespace opened in the browser
+
+When a Codespace is opened directly from GitHub in the browser editor, no local
+launcher runs. Install the same setup from a Codespace terminal with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dcatarino/dev-env/main/codespace-bootstrap.sh | bash
+```
+
+This runs `codespace-bootstrap.sh`, the same script the launchers upload and run
+in the background, so it installs Claude Code, NVM and Node.js 22, Codex, and
+the shared `dev-env` setup in the same order. Progress is shown in the terminal.
+It is safe to rerun and exits early if a launcher-started bootstrap is already
+running. Afterwards, open a new terminal (or run `exec "$SHELL"`) so the
+`claude` alias, Codex, and Node.js are loaded.
+
 ## Persisted agent memory
 
 Claude Code writes auto-memory per project under
@@ -157,7 +173,10 @@ tokens, and personal contact details must never be written there — see
 - `open-codespace-cursor-mac` — macOS launcher that hands the remote URL to
   Cursor through LaunchServices.
 - `open-codespace-terminal` — terminal-based Codespaces launcher.
-- `open-codespace-common.sh` — shared SSH and remote bootstrap implementation.
+- `open-codespace-common.sh` — shared Codespace selection and SSH
+  implementation.
+- `codespace-bootstrap.sh` — remote bootstrap uploaded by the launchers, also
+  runnable directly from a browser Codespace terminal.
 - `setup.sh` — local-only installer for the launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
   instructions, GitHub CLI, browser automation, and memory persistence,

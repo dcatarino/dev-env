@@ -44,9 +44,12 @@ skills describe.
 - `open-codespace-terminal` — starts the same detached bootstrap and connects
   the current terminal to `/workspaces` in the selected Codespace.
 - `open-codespace-common.sh` — shared Codespace selection, SSH configuration,
-  and remote bootstrap implementation. The bootstrap order is Claude Code,
-  NVM/Node 22, Codex, then cloning and running this repository's remote setup.
-  Its remote files live under `/tmp`; it must not change the selected project.
+  and upload of `codespace-bootstrap.sh`. Its remote files live under `/tmp`;
+  it must not change the selected project.
+- `codespace-bootstrap.sh` — the remote bootstrap: Claude Code, NVM/Node 22,
+  Codex, then cloning and running this repository's remote setup. The
+  launchers upload it; in a Codespace opened in the browser it runs directly
+  via `curl … | bash` from the `main` branch.
 - `setup.sh` — local-only installer that symlinks the launchers into
   `~/.local/bin`. It must not install skills or agent instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
@@ -75,6 +78,9 @@ skills describe.
 - Preserve the dedicated `~/.ssh/codespaces` include instead of appending
   generated host blocks repeatedly to `~/.ssh/config`.
 - Keep the remote bootstrap safe to rerun and guarded against concurrent runs.
+  Keep `codespace-bootstrap.sh` self-contained and runnable through
+  `curl … | bash`: its body stays inside `main`, which runs with stdin
+  detached, so installers cannot consume the rest of a piped script.
 - Keep local and remote responsibilities separate: `setup.sh` installs only the
   launcher locally; `remote-codespace-setup.sh` owns agent setup remotely.
 - `persist-agent-memory.sh` deletes the live memory directory after copying it

@@ -2,6 +2,10 @@
 
 # Shared implementation for the Cursor and terminal Codespace launchers.
 
+# Launchers source this file through its resolved path; remember it so they can
+# upload codespace-bootstrap.sh from the same checkout.
+open_codespace_dir=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 codespace_name_from_input() {
   local input=$1
 
@@ -254,10 +258,14 @@ open_codespace_main() {
   local remote_bootstrap=/tmp/open-codespace-bootstrap.sh
   local remote_bootstrap_log=/tmp/open-codespace-bootstrap.log
 
-  # Upload the bootstrap and, for Cursor, build its ephemeral workspace in one
-  # SSH round trip. Neither file is inside the selected project repository.
-  ssh "$ssh_host" bash -s -- \
-    "$remote_workspace" "$repository_name" "$remote_bootstrap" <<'REMOTE_PREP'
+  # Upload the shared bootstrap and, for Cursor, build its ephemeral workspace
+  # in one SSH round trip. Neither file is inside the selected project
+  # repository. The bootstrap is the same script a Codespace opened in the
+  # browser can run directly, so both setups stay identical.
+  local bootstrap_source=${open_codespace_dir}/codespace-bootstrap.sh
+  [[ -r "$bootstrap_source" ]] || die "missing $bootstrap_source"
+  {
+    cat <<'REMOTE_PREP'
 set -euo pipefail
 remote_workspace=$1
 repository_name=$2
@@ -270,107 +278,11 @@ if [[ "$remote_workspace" != "-" ]]; then
 fi
 
 cat >"$remote_bootstrap" <<'REMOTE_BOOTSTRAP'
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-lock_dir=${HOME}/.cache/open-codespace-bootstrap.lock
-mkdir -p "${HOME}/.cache"
-
-if ! mkdir "$lock_dir" 2>/dev/null; then
-  if [[ -f "$lock_dir/pid" ]] && kill -0 "$(<"$lock_dir/pid")" 2>/dev/null; then
-    printf 'Bootstrap is already running.\n'
-    exit 0
-  fi
-  rm -f "$lock_dir/pid"
-  rmdir "$lock_dir" 2>/dev/null || true
-  mkdir "$lock_dir"
-fi
-printf '%s\n' "$$" >"$lock_dir/pid"
-trap 'rm -f "$lock_dir/pid"; rmdir "$lock_dir" 2>/dev/null || true' EXIT
-
-ensure_line() {
-  local line=$1
-  local file=$2
-  touch "$file"
-  grep -Fqx "$line" "$file" || printf '\n%s\n' "$line" >>"$file"
-}
-
-printf '[1/5] Configuring the shell environment...\n'
-ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"
-ensure_line 'export IS_SANDBOX=1' "$HOME/.bashrc"
-ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
-ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.bashrc"
-ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.bashrc"
-
-# Keep the same behavior if a Codespace uses zsh instead of the default bash.
-ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc"
-ensure_line 'export IS_SANDBOX=1' "$HOME/.zshrc"
-ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.zshrc"
-ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.zshrc"
-ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.zshrc"
-
-export PATH="$HOME/.local/bin:$PATH"
-export IS_SANDBOX=1
-export NVM_DIR="$HOME/.nvm"
-
-printf '[2/5] Installing Claude Code if needed...\n'
-if ! command -v claude >/dev/null 2>&1; then
-  curl -fsSL https://claude.ai/install.sh | bash
-fi
-
-printf '[3/5] Installing NVM and Node.js 22 if needed...\n'
-if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh \
-    | PROFILE="$HOME/.bashrc" bash
-fi
-# shellcheck source=/dev/null
-\. "$NVM_DIR/nvm.sh"
-
-if [[ "$(nvm version 22)" == "N/A" ]]; then
-  nvm install 22
-else
-  nvm use 22
-fi
-nvm alias default 22
-
-printf '[4/5] Installing Codex if needed...\n'
-if ! command -v codex >/dev/null 2>&1; then
-  npm install -g @openai/codex
-fi
-
-printf '[5/5] Installing the shared development environment...\n'
-dev_env_dir=/dev-env
-if [[ ! -e "$dev_env_dir" && ! -w / ]]; then
-  if command -v sudo >/dev/null 2>&1 \
-    && sudo -n install -d -o "$(id -u)" -g "$(id -g)" "$dev_env_dir"; then
-    :
-  else
-    dev_env_dir=$HOME/dev-env
-  fi
-fi
-
-if [[ ! -e "$dev_env_dir" ]]; then
-  git clone https://github.com/dcatarino/dev-env "$dev_env_dir"
-elif [[ ! -d "$dev_env_dir/.git" ]]; then
-  printf '%s exists but is not a Git checkout; cannot install dev-env.\n' \
-    "$dev_env_dir" >&2
-  exit 1
-fi
-
-# Keep an existing Codespace checkout current so it receives new skills and
-# installer changes before refreshing the shared agent environment.
-git -C "$dev_env_dir" pull --ff-only
-bash "$dev_env_dir/remote-codespace-setup.sh"
-
-printf '\nBootstrap complete.\n'
-printf 'Node:   %s\n' "$(node --version)"
-printf 'npm:    %s\n' "$(npm --version)"
-printf 'Claude: %s\n' "$(command -v claude)"
-printf 'Codex:  %s\n' "$(command -v codex)"
-printf 'dev-env: %s\n' "$dev_env_dir"
-REMOTE_BOOTSTRAP
 REMOTE_PREP
+    cat "$bootstrap_source"
+    printf 'REMOTE_BOOTSTRAP\n'
+  } | ssh "$ssh_host" bash -s -- \
+    "$remote_workspace" "$repository_name" "$remote_bootstrap"
 
   start_bootstrap() {
     # Detach both the local starter and remote bootstrap so setup survives the

@@ -115,4 +115,9 @@ grep -Fq "nohup bash '/tmp/open-codespace-bootstrap.sh'" "$ssh_log"
 grep -Fq 'remote_workspace=$1' "$remote_prep_log"
 grep -Fq 'repository_name=$2' "$remote_prep_log"
 
+# The uploaded bootstrap must be the same script browser Codespaces run.
+sed -n "/^cat >\"\$remote_bootstrap\" <<'REMOTE_BOOTSTRAP'\$/,/^REMOTE_BOOTSTRAP\$/p" \
+  "$remote_prep_log" | sed '1d;$d' >"$work_dir/uploaded-bootstrap.sh"
+cmp -s "$repo_dir/codespace-bootstrap.sh" "$work_dir/uploaded-bootstrap.sh"
+
 printf 'macOS Cursor Codespace launcher tests passed.\n'

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# BROWSER for terminals of a Codespace opened in VS Code's browser editor.
+#
+# Claude Code opens its sign-in page with a http://localhost:<port>/callback
+# redirect. The browser editor runs that page on the local computer, which
+# cannot reach the Codespace's localhost, so the redirect fails. Refusing to
+# open that URL leaves Claude Code's own fallback: the URL on its login screen
+# ends on a page that shows a code to paste into the terminal. Every other URL
+# is handed to VS Code's helper unchanged.
+#
+# remote-codespace-setup.sh links this into ~/.local/bin. The shell startup
+# lines from codespace-bootstrap.sh select it only when BROWSER is VS Code's
+# Codespace helper, so Cursor keeps its working localhost sign-in.
+
+set -euo pipefail
+
+url=${1:-}
+
+shopt -s nocasematch
+case "$url" in
+  https://claude.com/*|https://claude.ai/*|https://platform.claude.com/*)
+    case "$url" in
+      *redirect_uri=http://localhost*|*redirect_uri=http%3A%2F%2Flocalhost*)
+        printf 'codespace-browser: not opening a localhost sign-in callback; use the URL shown in the terminal and paste the code.\n' >&2
+        exit 1
+        ;;
+    esac
+    ;;
+esac
+shopt -u nocasematch
+
+[[ -n "${DEV_ENV_VSCODE_BROWSER:-}" ]] || {
+  printf 'codespace-browser: DEV_ENV_VSCODE_BROWSER is not set\n' >&2
+  exit 1
+}
+exec "$DEV_ENV_VSCODE_BROWSER" "$@"

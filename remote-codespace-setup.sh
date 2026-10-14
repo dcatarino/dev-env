@@ -72,6 +72,14 @@ fi
 echo "Cursor global rule has no reliable file — for a global rule, paste"
 echo "odoo-agent.md into Cursor Settings > Rules (User Rules)."
 
+# --- Browser editor sign-in -------------------------------------------------
+# VS Code's browser editor cannot reach Claude Code's localhost sign-in
+# callback. The shell startup lines from codespace-bootstrap.sh use this
+# BROWSER wrapper there, so Claude Code falls back to its paste-a-code sign-in.
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$REPO/codespace-browser" "$HOME/.local/bin/codespace-browser"
+echo "installed: $HOME/.local/bin/codespace-browser"
+
 # --- Agent memory -----------------------------------------------------------
 # Claude Code's auto-memory is discarded by a Codespace rebuild. Persist it in
 # this repository, the same way skills and instructions are persisted.

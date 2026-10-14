@@ -50,6 +50,12 @@ skills describe.
   Codex, then cloning and running this repository's remote setup. The
   launchers upload it; in a Codespace opened in the browser it runs directly
   via `curl … | bash` from the `main` branch.
+- `codespace-browser` — `BROWSER` wrapper for VS Code browser editor
+  terminals. It refuses only Claude Code's localhost-callback sign-in URL, so
+  Claude falls back to its paste-a-code sign-in, and passes every other URL to
+  VS Code's helper. `remote-codespace-setup.sh` links it into `~/.local/bin`;
+  a startup line from `codespace-bootstrap.sh` selects it only when `BROWSER`
+  is VS Code's `/vscode/…` helper, leaving Cursor's working flow untouched.
 - `setup.sh` — local-only installer that symlinks the launchers into
   `~/.local/bin`. It must not install skills or agent instructions locally.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions

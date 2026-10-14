@@ -146,6 +146,19 @@ It is safe to rerun and exits early if a launcher-started bootstrap is already
 running. Afterwards, open a new terminal (or run `exec "$SHELL"`) so the
 `claude` alias, Codex, and Node.js are loaded.
 
+Claude Code normally signs in through a `http://localhost:<port>/callback`
+redirect. The browser editor cannot forward that to the Codespace, so the tab
+it opens ends on an unreachable localhost page. In browser editor terminals the
+setup therefore points `BROWSER` at `codespace-browser`, which declines to open
+that one URL and passes every other link to VS Code. To sign in:
+
+1. Run `claude` and choose a login method.
+2. Open the URL shown under "Browser didn't open?" and sign in.
+3. Copy the code the page shows and paste it at "Paste code here if prompted".
+
+Cursor terminals keep the automatic sign-in, because Cursor forwards the
+localhost callback.
+
 ## Persisted agent memory
 
 Claude Code writes auto-memory per project under
@@ -177,6 +190,8 @@ tokens, and personal contact details must never be written there — see
   implementation.
 - `codespace-bootstrap.sh` — remote bootstrap uploaded by the launchers, also
   runnable directly from a browser Codespace terminal.
+- `codespace-browser` — `BROWSER` wrapper for browser editor terminals that
+  keeps Claude Code's sign-in on its paste-a-code flow.
 - `setup.sh` — local-only installer for the launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
   instructions, GitHub CLI, browser automation, and memory persistence,

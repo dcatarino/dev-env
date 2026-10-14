@@ -34,11 +34,15 @@ main() {
   trap 'rm -f "$lock_dir/pid"; rmdir "$lock_dir" 2>/dev/null || true' EXIT
 
   printf '[1/5] Configuring the shell environment...\n'
+  browser_line='case "${BROWSER:-}" in /vscode/*) [ -x "$HOME/.local/bin/codespace-browser" ] && export DEV_ENV_VSCODE_BROWSER="$BROWSER" BROWSER="$HOME/.local/bin/codespace-browser" ;; esac'
   ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"
   ensure_line 'export IS_SANDBOX=1' "$HOME/.bashrc"
   ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
   ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.bashrc"
   ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.bashrc"
+  # VS Code's browser editor cannot reach Claude Code's localhost sign-in
+  # callback; Cursor's helper lives elsewhere and keeps its working flow.
+  ensure_line "$browser_line" "$HOME/.bashrc"
 
   # Keep the same behavior if a Codespace uses zsh instead of the default bash.
   ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc"
@@ -46,6 +50,7 @@ main() {
   ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.zshrc"
   ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.zshrc"
   ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.zshrc"
+  ensure_line "$browser_line" "$HOME/.zshrc"
 
   export PATH="$HOME/.local/bin:$PATH"
   export IS_SANDBOX=1

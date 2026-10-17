@@ -161,6 +161,8 @@ localhost callback.
 
 ## Run and watch agents with Herdr
 
+The step-by-step workflow is in [docs/herdr-workflow.md](docs/herdr-workflow.md).
+
 [Herdr](https://herdr.dev) is a terminal multiplexer that recognises coding
 agents. The Codespace setup installs it with its Claude Code and Codex
 integrations, plus the `herd` command. Start agents with `herd` instead of
@@ -258,6 +260,8 @@ tokens, and personal contact details must never be written there — see
 - `herd` — starts Claude Code or Codex inside the Codespace's Herdr server.
 - `herdr-codespaces` — local command that shows every running Codespace's
   Herdr agents in one window.
+- `docs/herdr-workflow.md` — daily workflow for running and watching agents
+  with Herdr.
 - `setup.sh` — local-only installer for the launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
   instructions, GitHub CLI, browser automation, and memory persistence,

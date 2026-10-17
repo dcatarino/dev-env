@@ -22,15 +22,18 @@ fail() {
   exit 1
 }
 
-# Codespaces: alpha is running and not yet a machine, beta is running but its
-# machine is disabled, gamma is stopped with an enabled machine, delta's
-# Codespace was deleted, and epsilon is running but herdr add fails there.
+# Codespaces: alpha is running and not yet a machine, beta is running and its
+# machine was disabled by an earlier sync when it stopped, zeta is running but
+# its machine was disabled by the user, gamma is stopped with an enabled
+# machine, delta's Codespace was deleted, and epsilon is running but herdr add
+# fails there.
 cat >"$work_dir/codespaces.json" <<'JSON'
 [
   {"name": "alpha-cs-x1", "repository": "360ERP/mattsleeps", "state": "Available"},
   {"name": "beta-cs-x2", "repository": "360ERP/beautyplaza", "state": "Available"},
   {"name": "gamma-cs-x3", "repository": "360ERP/stas", "state": "Shutdown"},
-  {"name": "epsilon-cs-x5", "repository": "360ERP/vyta", "state": "Available"}
+  {"name": "epsilon-cs-x5", "repository": "360ERP/vyta", "state": "Available"},
+  {"name": "zeta-cs-x6", "repository": "360ERP/stoov", "state": "Available"}
 ]
 JSON
 cat >"$work_dir/machines.json" <<'JSON'
@@ -41,6 +44,8 @@ cat >"$work_dir/machines.json" <<'JSON'
    "session": "default", "enabled": true, "selected": false},
   {"id": "ep_delta", "label": "old (delta-cs)", "target": "herdr-cs.delta-cs-x4",
    "session": "default", "enabled": true, "selected": false},
+  {"id": "ep_zeta", "label": "stoov (zeta-cs)", "target": "herdr-cs.zeta-cs-x6",
+   "session": "default", "enabled": false, "selected": false},
   {"id": "ep_mine", "label": "my server", "target": "workbox",
    "session": "default", "enabled": true, "selected": false}
 ]
@@ -96,11 +101,18 @@ run_sync() {
     bash "$script" "$@"
 }
 
+mkdir -p "$work_dir/cache/herdr-codespaces/auto-disabled"
+touch "$work_dir/cache/herdr-codespaces/auto-disabled/beta-cs-x2"
 output=$(run_sync sync 2>&1)
 
 grep -Fqx 'machine add herdr-cs.alpha-cs-x1 --label mattsleeps (alpha-cs) --remote-session default' \
   "$herdr_log" || fail "alpha was not added with its repository label"
 grep -Fqx 'machine enable ep_beta' "$herdr_log" || fail "beta was not re-enabled"
+grep -Fq 'ep_zeta' "$herdr_log" && fail "a machine disabled by the user was re-enabled"
+[[ -f "$work_dir/cache/herdr-codespaces/auto-disabled/gamma-cs-x3" ]] \
+  || fail "gamma was not recorded as disabled by sync"
+[[ ! -e "$work_dir/cache/herdr-codespaces/auto-disabled/beta-cs-x2" ]] \
+  || fail "beta's auto-disabled record was kept after re-enabling it"
 grep -Fqx 'machine disable ep_gamma' "$herdr_log" || fail "stopped gamma was not disabled"
 grep -Fqx 'machine remove ep_delta' "$herdr_log" || fail "deleted delta was not removed"
 grep -Fq 'ep_mine' "$herdr_log" && fail "a machine not created by herdr-codespaces was changed"

@@ -5,7 +5,9 @@
 # Each Available Codespace becomes a saved Herdr SSH machine, so the Herdr
 # sidebar lists the agents started with `herd` in every Codespace and whether
 # they are working, blocked on a question, or done. Stopped Codespaces are
-# disabled instead of removed, and deleted ones are removed.
+# disabled instead of removed and re-enabled when they run again; deleted ones
+# are removed. A machine you disable yourself (herdr machine disable) stays
+# disabled.
 #
 # Usage:
 #   herdr-codespaces          sync, then open the Herdr window; while it is open
@@ -134,7 +136,7 @@ plan_actions() {
         | $machine_for[$c.name] as $m
         | if $c.state == "Available" then
             if $m == null then ["add", $c.name, machine_label($c)]
-            elif ($m.enabled | not) then ["enable", $m.id, $c.name]
+            elif ($m.enabled | not) then ["enable", $m.id, $c.name, machine_label($c)]
             else empty end
           elif $m != null and $m.enabled then ["disable", $m.id, $c.name]
           else empty end
@@ -165,9 +167,9 @@ sync_main() {
 
   write_hosts_file "$self"
   actions=$(plan_actions "$codespaces_json" "$machines_json")
-  mkdir -p "$cache_dir/add-failed"
+  mkdir -p "$cache_dir/add-failed" "$cache_dir/auto-disabled"
 
-  while IFS=$'\t' read -r action subject detail; do
+  while IFS=$'\t' read -r action subject detail label; do
     [[ -n "$action" ]] || continue
     case "$action" in
       add)
@@ -188,16 +190,21 @@ sync_main() {
         fi
         ;;
       enable)
+        # Re-enable only machines this command disabled because their
+        # Codespace stopped; never override a machine the user disabled.
+        [[ -f "$cache_dir/auto-disabled/$detail" ]] || continue
         "$herdr_bin" machine enable "$subject" >/dev/null
-        printf 'Enabled %s\n' "$detail"
+        rm -f "$cache_dir/auto-disabled/$detail"
+        printf 'Enabled %s\n' "$label"
         ;;
       disable)
         "$herdr_bin" machine disable "$subject" >/dev/null
+        touch "$cache_dir/auto-disabled/$detail"
         printf 'Disabled stopped Codespace %s\n' "$detail"
         ;;
       remove)
         "$herdr_bin" machine remove "$subject" >/dev/null
-        rm -f "$cache_dir/add-failed/$detail"
+        rm -f "$cache_dir/add-failed/$detail" "$cache_dir/auto-disabled/$detail"
         printf 'Removed deleted Codespace %s\n' "$detail"
         ;;
     esac

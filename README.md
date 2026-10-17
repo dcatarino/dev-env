@@ -182,13 +182,16 @@ closes.
 
 ### See every Codespace's agents in one window
 
-On the computer or VPS where you run `setup.sh` (it needs `gh`, `jq`, and
-Herdr 0.9.5 or newer):
+On any Linux or macOS computer or VPS where you run `setup.sh` (it needs `gh`,
+`jq`, and Herdr 0.9.5 or newer):
 
 ```bash
-curl -fsSL https://herdr.dev/install.sh | sh     # once
+curl -fsSL https://herdr.dev/install.sh | sh     # once; or: brew install herdr jq
 herdr-codespaces
 ```
+
+Several computers can run it at the same time; each opens its own window on the
+same agents.
 
 It adds every running Codespace as a Herdr SSH machine and opens Herdr. The
 sidebar lists the agents of all Codespaces and marks each one `working`,
@@ -197,6 +200,11 @@ agent to read it and answer it in place. While the window is open, the list is
 synced every two minutes: new Codespaces appear, stopped ones are disabled, and
 deleted ones are removed. `herdr-codespaces sync` syncs once without opening
 the window.
+
+To leave, detach with `ctrl+b q`: the window closes and every agent keeps
+running in its Codespace. To drop one Codespace from the window, use
+`herdr machine list` and `herdr machine disable <id>`; its agents keep running
+and the sync does not re-enable it. `herdr machine enable <id>` brings it back.
 
 Notes:
 

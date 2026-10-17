@@ -144,6 +144,10 @@ herdr --machine "<label>" agent list     # one Codespace's agents, as JSON
   (`gh codespace list`), that its bootstrap finished, and run
   `herdr-codespaces sync` to see the error. Background sync output is in
   `~/.cache/herdr-codespaces/sync.log`.
+- **A Codespace keeps showing `reconnecting`.** `herdr machine status` prints
+  the SSH error. A `herdr-codespaces` older than this fix wrote host entries
+  that Herdr 0.9.5 rejects (`Host key verification failed`); pull dev-env and
+  run `herdr-codespaces sync`.
 - **A Codespace shows `! error` after it stopped.** It is disabled at the next
   sync; reopen it with a launcher if you need it.
 - **`herdr-codespaces` says saved machines are unsupported.** The local Herdr

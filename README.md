@@ -159,6 +159,61 @@ that one URL and passes every other link to VS Code. To sign in:
 Cursor terminals keep the automatic sign-in, because Cursor forwards the
 localhost callback.
 
+## Run and watch agents with Herdr
+
+[Herdr](https://herdr.dev) is a terminal multiplexer that recognises coding
+agents. The Codespace setup installs it with its Claude Code and Codex
+integrations, plus the `herd` command. Start agents with `herd` instead of
+`claude`/`codex` from any terminal, including Cursor's:
+
+```bash
+herd                          # Claude Code in this folder, named after it
+herd codex                    # Codex instead
+herd claude request-1929      # choose the agent name
+herd claude -- --resume       # pass arguments to the agent
+herd ls                       # list agents and their state
+herd attach request-1929      # reattach
+```
+
+`herd` runs the agent in the Codespace's Herdr server and attaches the current
+terminal to it. It uses the same sandboxed `claude` alias as a normal terminal.
+Detach with `ctrl+b q`; the agent keeps running when the terminal or Cursor
+closes.
+
+### See every Codespace's agents in one window
+
+On the computer or VPS where you run `setup.sh` (it needs `gh`, `jq`, and
+Herdr 0.9.5 or newer):
+
+```bash
+curl -fsSL https://herdr.dev/install.sh | sh     # once
+herdr-codespaces
+```
+
+It adds every running Codespace as a Herdr SSH machine and opens Herdr. The
+sidebar lists the agents of all Codespaces and marks each one `working`,
+`blocked` (waiting for an answer or approval), `done`, or `idle`. Select an
+agent to read it and answer it in place. While the window is open, the list is
+synced every two minutes: new Codespaces appear, stopped ones are disabled, and
+deleted ones are removed. `herdr-codespaces sync` syncs once without opening
+the window.
+
+Notes:
+
+- Only agents started with `herd` (or inside `herdr`) are visible; a plain
+  `claude` in a Cursor terminal is not.
+- A Codespace appears once its bootstrap has installed Herdr. If it was not
+  ready, it is retried after 10 minutes.
+- Herdr never starts a stopped Codespace: its SSH connection goes through a
+  guard that refuses Codespaces that are not `Available`. Open the Codespace
+  with a launcher first.
+- An open SSH connection may keep a Codespace from stopping on its idle
+  timeout. Close the window, or stop Codespaces you no longer need.
+- The window uses its own local Herdr session, `codespaces`, so it does not
+  touch a Herdr session you already run on that computer.
+- The generated SSH hosts live in `~/.ssh/herdr-codespaces`, included from
+  `~/.ssh/config`, next to the launchers' `~/.ssh/codespaces`.
+
 ## Persisted agent memory
 
 Claude Code writes auto-memory per project under
@@ -192,6 +247,9 @@ tokens, and personal contact details must never be written there — see
   runnable directly from a browser Codespace terminal.
 - `codespace-browser` — `BROWSER` wrapper for browser editor terminals that
   keeps Claude Code's sign-in on its paste-a-code flow.
+- `herd` — starts Claude Code or Codex inside the Codespace's Herdr server.
+- `herdr-codespaces` — local command that shows every running Codespace's
+  Herdr agents in one window.
 - `setup.sh` — local-only installer for the launcher commands.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
   instructions, GitHub CLI, browser automation, and memory persistence,

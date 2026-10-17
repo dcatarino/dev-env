@@ -80,6 +80,41 @@ mkdir -p "$HOME/.local/bin"
 ln -sfn "$REPO/codespace-browser" "$HOME/.local/bin/codespace-browser"
 echo "installed: $HOME/.local/bin/codespace-browser"
 
+# --- Herdr (agent runtime) --------------------------------------------------
+# `herd` runs Claude Code or Codex inside a Herdr server, so agents survive a
+# closed terminal and herdr-codespaces on another machine can show whether each
+# one is working, blocked on a question, or done. The integrations let Herdr
+# resume the same agent conversation after a server restart. Best-effort.
+install_herdr() {
+  local herdr_bin=$HOME/.local/bin/herdr herdr_config=$HOME/.config/herdr/config.toml
+
+  # Herdr updates itself (`herdr update`); only install when it is missing.
+  # ~/.local/bin is also where a herdr client on another machine looks for it.
+  if [[ ! -x "$herdr_bin" ]]; then
+    echo "installing herdr..."
+    curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="$HOME/.local/bin" sh \
+      || return 1
+  fi
+  echo "herdr: $("$herdr_bin" --version)"
+
+  # The first-run screen would otherwise cover the first attached agent.
+  if [[ ! -e "$herdr_config" ]]; then
+    mkdir -p "$(dirname "$herdr_config")"
+    printf 'onboarding = false\n' >"$herdr_config"
+  fi
+
+  "$herdr_bin" integration install claude >/dev/null \
+    || echo "warning: herdr Claude integration failed" >&2
+  "$herdr_bin" integration install codex >/dev/null \
+    || echo "warning: herdr Codex integration failed" >&2
+
+  mkdir -p "$HOME/.local/bin"
+  ln -sfn "$REPO/herd" "$HOME/.local/bin/herd"
+  echo "installed: $HOME/.local/bin/herd (start agents with: herd [claude|codex])"
+}
+
+install_herdr || echo "warning: herdr install failed; agents still run directly with claude/codex"
+
 # --- Agent memory -----------------------------------------------------------
 # Claude Code's auto-memory is discarded by a Codespace rebuild. Persist it in
 # this repository, the same way skills and instructions are persisted.

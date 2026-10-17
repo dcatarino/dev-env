@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+
+# Shows the agents of every running GitHub Codespace in one local Herdr window.
+#
+# Each Available Codespace becomes a saved Herdr SSH machine, so the Herdr
+# sidebar lists the agents started with `herd` in every Codespace and whether
+# they are working, blocked on a question, or done. Stopped Codespaces are
+# disabled instead of removed, and deleted ones are removed.
+#
+# Usage:
+#   herdr-codespaces          sync, then open the Herdr window; while it is open
+#                             the list is synced again every 2 minutes
+#   herdr-codespaces sync     sync the machine list once
+#
+# The window opens the local Herdr session "codespaces" (override with
+# HERDR_SESSION), so it never attaches to, or asks to replace, a local Herdr
+# server you already run. Set HERDR_BIN to use a specific herdr binary.
+
+set -euo pipefail
+
+herdr_bin=${HERDR_BIN:-herdr}
+window_session=${HERDR_SESSION:-codespaces}
+sync_interval=${HERDR_CODESPACES_SYNC_SECONDS:-120}
+host_prefix=herdr-cs.
+ssh_dir=${HOME}/.ssh
+hosts_file=${ssh_dir}/herdr-codespaces
+ssh_config=${ssh_dir}/config
+cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/herdr-codespaces
+# A failed `machine add` (usually: herdr is not installed in that Codespace
+# yet) is retried only after this many minutes, so a timer does not open an
+# SSH connection to the same Codespace every run.
+retry_minutes=${HERDR_CODESPACES_RETRY_MINUTES:-10}
+
+die() {
+  printf 'herdr-codespaces: %s\n' "$*" >&2
+  exit 1
+}
+
+warn() {
+  printf 'herdr-codespaces: %s\n' "$*" >&2
+}
+
+self_path() {
+  local dir
+  dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  printf '%s/%s\n' "$dir" "$(basename "${BASH_SOURCE[0]}")"
+}
+
+# --- SSH ProxyCommand guard ------------------------------------------------
+# `gh codespace ssh` starts a stopped Codespace. Herdr retries lost machine
+# connections, so without this guard an open Herdr window would restart every
+# Codespace that GitHub stopped for inactivity.
+proxy_main() {
+  local name="" previous="" argument state
+  for argument in "$@"; do
+    if [[ "$previous" == -c ]]; then
+      name=$argument
+      break
+    fi
+    previous=$argument
+  done
+  [[ -n "$name" ]] || die "proxy: missing -c CODESPACE in: $*"
+
+  state=$("$1" codespace view -c "$name" --json state --jq .state 2>/dev/null) \
+    || state=unknown
+  if [[ "$state" != Available ]]; then
+    die "Codespace $name is $state; open it first (not starting it from Herdr)"
+  fi
+  exec "$@"
+}
+
+# --- Sync -------------------------------------------------------------------
+write_hosts_file() {
+  local self=$1 generated temporary
+  # gh exits 1 when any Codespace is stopped, yet still prints every running
+  # Codespace's host block, so keep its output regardless of the status.
+  generated=$(gh codespace ssh --config 2>/dev/null || true)
+
+  mkdir -p "$ssh_dir"
+  chmod 700 "$ssh_dir"
+  temporary=$(mktemp "$ssh_dir/.herdr-codespaces.XXXXXX")
+
+  # Give each Codespace a stable alias (gh's alias contains the branch) and
+  # route its connection through the guard above.
+  awk -v prefix="$host_prefix" -v self="$self" '
+    function flush(   i) {
+      if (count > 0 && name != "") {
+        print "Host " prefix name
+        for (i = 2; i <= count; i++) print lines[i]
+        print ""
+      }
+      count = 0
+      name = ""
+    }
+    $1 == "Host" { flush(); count = 1; lines[1] = $0; next }
+    count > 0 {
+      line = $0
+      if ($1 == "ProxyCommand") {
+        for (i = 2; i < NF; i++) if ($i == "-c") name = $(i + 1)
+        sub(/ProxyCommand[ \t]+/, "ProxyCommand \"" self "\" proxy ", line)
+      }
+      lines[++count] = line
+    }
+    END { flush() }
+  ' <<<"$generated" >"$temporary"
+
+  chmod 600 "$temporary"
+  mv -f "$temporary" "$hosts_file"
+
+  touch "$ssh_config"
+  chmod 600 "$ssh_config"
+  if ! grep -Fqx 'Include ~/.ssh/herdr-codespaces' "$ssh_config"; then
+    printf '\nMatch all\nInclude ~/.ssh/herdr-codespaces\n' >>"$ssh_config"
+  fi
+}
+
+# Prints one tab-separated action per line: add/enable/disable/remove.
+plan_actions() {
+  local codespaces_json=$1 machines_json=$2
+  jq -r -n \
+    --argjson codespaces "$codespaces_json" \
+    --argjson machines "$machines_json" \
+    --arg prefix "$host_prefix" '
+    def machine_label($c):
+      ($c.repository | split("/") | last) + " ("
+      + ($c.name | split("-") | if length > 1 then .[:-1] else . end | join("-"))
+      + ")";
+    ($machines | map(select(.target | startswith($prefix)))) as $managed
+    | ($managed | map({key: (.target | ltrimstr($prefix)), value: .}) | from_entries)
+      as $machine_for
+    | ($codespaces | map({key: .name, value: true}) | from_entries) as $exists
+    | (
+        $codespaces[] as $c
+        | $machine_for[$c.name] as $m
+        | if $c.state == "Available" then
+            if $m == null then ["add", $c.name, machine_label($c)]
+            elif ($m.enabled | not) then ["enable", $m.id, $c.name]
+            else empty end
+          elif $m != null and $m.enabled then ["disable", $m.id, $c.name]
+          else empty end
+      ),
+      (
+        $managed[]
+        | (.target | ltrimstr($prefix)) as $name
+        | select($exists[$name] | not)
+        | ["remove", .id, $name]
+      )
+    | @tsv'
+}
+
+recently_failed() {
+  local marker="$cache_dir/add-failed/$1"
+  [[ -f "$marker" ]] && [[ -n "$(find "$marker" -mmin "-$retry_minutes" 2>/dev/null)" ]]
+}
+
+sync_main() {
+  local self codespaces_json machines_json actions
+  local action subject detail output added=0 failed=0
+  self=$(self_path)
+
+  codespaces_json=$(gh codespace list --limit 200 --json name,repository,state) \
+    || die "could not list Codespaces (is gh logged in with the codespace scope?)"
+  machines_json=$("$herdr_bin" machine list --json) \
+    || die "$herdr_bin does not support saved machines; install herdr 0.9.5 or newer"
+
+  write_hosts_file "$self"
+  actions=$(plan_actions "$codespaces_json" "$machines_json")
+  mkdir -p "$cache_dir/add-failed"
+
+  while IFS=$'\t' read -r action subject detail; do
+    [[ -n "$action" ]] || continue
+    case "$action" in
+      add)
+        if recently_failed "$subject"; then
+          continue
+        fi
+        printf 'Connecting %s...\n' "$detail"
+        # Without a terminal Herdr never asks to install or replace anything.
+        if output=$("$herdr_bin" machine add "${host_prefix}${subject}" \
+          --label "$detail" --remote-session default </dev/null 2>&1); then
+          rm -f "$cache_dir/add-failed/$subject"
+          added=$((added + 1))
+        else
+          touch "$cache_dir/add-failed/$subject"
+          failed=$((failed + 1))
+          warn "could not connect $detail; is herdr installed there (dev-env bootstrap)?"
+          warn "  $(printf '%s\n' "$output" | grep -v '^[[:space:]]*$' | tail -n 1)"
+        fi
+        ;;
+      enable)
+        "$herdr_bin" machine enable "$subject" >/dev/null
+        printf 'Enabled %s\n' "$detail"
+        ;;
+      disable)
+        "$herdr_bin" machine disable "$subject" >/dev/null
+        printf 'Disabled stopped Codespace %s\n' "$detail"
+        ;;
+      remove)
+        "$herdr_bin" machine remove "$subject" >/dev/null
+        rm -f "$cache_dir/add-failed/$detail"
+        printf 'Removed deleted Codespace %s\n' "$detail"
+        ;;
+    esac
+  done <<<"$actions"
+
+  if (( added > 0 )); then
+    printf 'Connected %d Codespace(s).\n' "$added"
+  fi
+  if (( failed > 0 )); then
+    printf '%d Codespace(s) could not be connected; retrying in %d minutes.\n' \
+      "$failed" "$retry_minutes"
+  fi
+}
+
+# Open clients pick up machine changes automatically, so a background sync
+# shows new Codespaces and drops stopped ones while the window is open.
+window_main() {
+  local sync_log="$cache_dir/sync.log" sync_pid status=0
+  mkdir -p "$cache_dir"
+  (
+    trap 'exit 0' TERM
+    while sleep "$sync_interval"; do
+      sync_main >>"$sync_log" 2>&1 || true
+    done
+  ) &
+  sync_pid=$!
+
+  "$herdr_bin" --session "$window_session" || status=$?
+  kill "$sync_pid" 2>/dev/null || true
+  wait "$sync_pid" 2>/dev/null || true
+  return "$status"
+}
+
+main() {
+  case "${1:-}" in
+    proxy)
+      shift
+      proxy_main "$@"
+      ;;
+    -h|--help|help)
+      awk 'NR > 2 && !/^#/ { exit } NR > 2 { sub(/^# ?/, ""); print }' \
+        "${BASH_SOURCE[0]}"
+      ;;
+    sync|"")
+      command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed"
+      command -v jq >/dev/null 2>&1 || die "jq is not installed"
+      command -v "$herdr_bin" >/dev/null 2>&1 \
+        || die "herdr is not installed: curl -fsSL https://herdr.dev/install.sh | sh"
+      sync_main
+      [[ "${1:-}" == sync ]] || window_main
+      ;;
+    *)
+      die "unknown command: $1 (see herdr-codespaces --help)"
+      ;;
+  esac
+}
+
+main "$@"

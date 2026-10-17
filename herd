@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+
+# Runs Claude Code or Codex inside this Codespace's Herdr server instead of
+# directly in the terminal. The agent then keeps running when the terminal (or
+# Cursor) closes, and a herdr client on another machine (see herdr-codespaces)
+# shows whether it is working, blocked on a question, or done.
+#
+# Usage:
+#   herd [claude|codex] [NAME] [-- AGENT_ARGS...]   start an agent here, attach
+#   herd attach NAME                                 reattach to a running agent
+#   herd ls                                          list agents and their state
+#
+# Detach with ctrl+b q; the agent keeps running. remote-codespace-setup.sh links
+# this into ~/.local/bin.
+
+set -euo pipefail
+
+herdr_bin=${HERDR_BIN:-herdr}
+
+die() {
+  printf 'herd: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  herd [claude|codex] [NAME] [-- AGENT_ARGS...]   start an agent here and attach
+  herd attach NAME                                 reattach to a running agent
+  herd ls                                          list agents and their state
+
+The agent runs in this Codespace's Herdr server, so it survives closing the
+terminal and is visible from herdr-codespaces on another machine.
+Detach with ctrl+b q. NAME defaults to the current folder name.
+USAGE
+}
+
+herdr_json() {
+  # Herdr prints API errors as JSON on stderr; keep them for error reporting.
+  "$herdr_bin" "$@" 2>&1
+}
+
+error_code() {
+  jq -r '.error.code // empty' <<<"$1" 2>/dev/null || true
+}
+
+server_running() {
+  "$herdr_bin" status server 2>/dev/null | grep -q '^status: running'
+}
+
+ensure_server() {
+  server_running && return 0
+
+  # Herdr's server ignores SIGHUP; a new session also keeps it out of this
+  # terminal's job control, so closing the terminal never stops the agents.
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$herdr_bin" server >/dev/null 2>&1 </dev/null &
+  else
+    nohup "$herdr_bin" server >/dev/null 2>&1 </dev/null &
+  fi
+
+  local _
+  for _ in $(seq 1 50); do
+    server_running && return 0
+    sleep 0.1
+  done
+  die "the herdr server did not start"
+}
+
+live_agent_names() {
+  herdr_json agent list | jq -r '.result.agents[]?.name // empty'
+}
+
+# Herdr agent names must match [a-z][a-z0-9_-]{0,31}.
+default_name() {
+  local base existing candidate index=1
+  base=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-')
+  base=${base%-}
+  [[ "$base" =~ ^[a-z] ]] || base="agent-$base"
+  base=${base:0:28}
+  base=${base%-}
+  existing=$(live_agent_names)
+
+  candidate=$base
+  while grep -Fqx -- "$candidate" <<<"$existing"; do
+    index=$((index + 1))
+    candidate="${base}-${index}"
+  done
+  printf '%s\n' "$candidate"
+}
+
+start_agent() {
+  local kind=claude name=""
+  local -a agent_args=()
+
+  if [[ "${1:-}" == claude || "${1:-}" == codex ]]; then
+    kind=$1
+    shift
+  fi
+  if (( $# > 0 )) && [[ "$1" != -- ]]; then
+    name=$1
+    shift
+  fi
+  if (( $# > 0 )); then
+    [[ "$1" == -- ]] || die "unexpected argument: $1 (see herd --help)"
+    shift
+    agent_args=("$@")
+  fi
+
+  ensure_server
+  [[ -n "$name" ]] || name=$(default_name)
+  [[ "$name" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] \
+    || die "invalid name '$name': use lowercase letters, digits, - or _ (max 32)"
+  if live_agent_names | grep -Fqx -- "$name"; then
+    die "an agent named '$name' is already running; use: herd attach $name"
+  fi
+
+  local created pane terminal
+  created=$(herdr_json workspace create --cwd "$PWD" --label "$name" --no-focus)
+  pane=$(jq -r '.result.root_pane.pane_id // empty' <<<"$created" 2>/dev/null) || pane=""
+  terminal=$(jq -r '.result.root_pane.terminal_id // empty' <<<"$created" 2>/dev/null) \
+    || terminal=""
+  [[ -n "$pane" && -n "$terminal" ]] || die "could not create a herdr workspace: $created"
+
+  # A new pane is ready for an agent only once its shell owns the foreground.
+  # The pane's interactive shell also loads the sandboxed claude alias.
+  local started code attempt
+  for attempt in $(seq 1 50); do
+    if started=$(herdr_json agent start "$name" --kind "$kind" --pane "$pane" \
+      -- ${agent_args[@]+"${agent_args[@]}"}); then
+      break
+    fi
+    code=$(error_code "$started")
+    case "$code" in
+      agent_pane_busy)
+        (( attempt < 50 )) || die "the new pane did not become ready: $started"
+        sleep 0.2
+        ;;
+      agent_not_ready)
+        # The agent is waiting for an answer (for example Claude's folder
+        # trust prompt); attach so it can be answered.
+        break
+        ;;
+      *)
+        printf 'herd: could not start %s: %s\n' "$kind" "$started" >&2
+        printf 'herd: attaching to the pane so you can see what happened.\n' >&2
+        break
+        ;;
+    esac
+  done
+
+  exec "$herdr_bin" terminal attach "$terminal"
+}
+
+main() {
+  command -v "$herdr_bin" >/dev/null 2>&1 \
+    || die "herdr is not installed; rerun the dev-env Codespace bootstrap"
+  command -v jq >/dev/null 2>&1 || die "jq is required"
+
+  case "${1:-}" in
+    -h|--help|help)
+      usage
+      ;;
+    ls|list)
+      (( $# == 1 )) || die "usage: herd ls"
+      server_running || { printf 'No herdr server is running.\n'; return 0; }
+      herdr_json agent list | jq -r '
+        ["NAME", "AGENT", "STATE", "FOLDER"],
+        (.result.agents[]? | [(.name // .pane_id), .agent, .agent_status, .cwd])
+        | @tsv'
+      ;;
+    attach)
+      (( $# == 2 )) || die "usage: herd attach NAME"
+      server_running || die "no herdr server is running"
+      exec "$herdr_bin" agent attach "$2"
+      ;;
+    *)
+      start_agent "$@"
+      ;;
+  esac
+}
+
+main "$@"

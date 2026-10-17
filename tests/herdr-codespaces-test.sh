@@ -125,6 +125,9 @@ hosts="$fake_home/.ssh/herdr-codespaces"
 grep -Fqx 'Host herdr-cs.alpha-cs-x1' "$hosts" || fail "missing stable host alias"
 grep -Fq "ProxyCommand \"$script\" proxy /usr/bin/gh cs ssh -c alpha-cs-x1 --stdio" "$hosts" \
   || fail "ProxyCommand is not routed through the guard"
+# Herdr forces StrictHostKeyChecking=yes, so each host must list its key.
+[[ "$(grep -c 'KnownHostsCommand /bin/echo %H %t %K' "$hosts")" == 3 ]] \
+  || fail "a host alias does not accept the key of its gh tunnel"
 [[ "$(stat -c %a "$hosts" 2>/dev/null || stat -f %Lp "$hosts")" == 600 ]] \
   || fail "host file is not private"
 
@@ -135,8 +138,10 @@ run_sync sync >/dev/null 2>&1
   || fail "Include was added more than once"
 grep -Fq 'epsilon' "$herdr_log" && fail "failed Codespace was retried before the back-off"
 
-# A failure marker older than the back-off is retried.
-HERDR_CODESPACES_RETRY_MINUTES=0 run_sync sync >/dev/null 2>&1 || true
+# A failure marker older than the back-off is retried. Backdate it: BSD find
+# treats a file touched in the current second as newer than -mmin -0.
+touch -t 202001010000 "$work_dir/cache/herdr-codespaces/add-failed/epsilon-cs-x5"
+run_sync sync >/dev/null 2>&1 || true
 grep -Fq 'machine add herdr-cs.epsilon-cs-x5' "$herdr_log" \
   || fail "failed Codespace was not retried after the back-off"
 

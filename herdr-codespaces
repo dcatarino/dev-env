@@ -84,10 +84,18 @@ write_hosts_file() {
 
   # Give each Codespace a stable alias (gh's alias contains the branch) and
   # route its connection through the guard above.
+  #
+  # Herdr runs ssh with -o StrictHostKeyChecking=yes, which overrides gh's
+  # "StrictHostKeyChecking no"; with gh's UserKnownHostsFile=/dev/null every
+  # connection then fails host key verification and the machine never
+  # connects. Keep gh's policy, which trusts its authenticated tunnel to the
+  # Codespace (Codespaces built from one image share their host keys anyway),
+  # by listing the key the host presents as known.
   awk -v prefix="$host_prefix" -v self="$self" '
     function flush(   i) {
       if (count > 0 && name != "") {
         print "Host " prefix name
+        print "\tKnownHostsCommand /bin/echo %H %t %K"
         for (i = 2; i <= count; i++) print lines[i]
         print ""
       }

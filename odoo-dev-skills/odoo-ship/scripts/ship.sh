@@ -112,16 +112,13 @@ feature_pr=$(open_pr "$feature" "$version")
 feature_push=needed
 [[ $(remote_sha "$feature") != "$(git rev-parse HEAD)" ]] || feature_push="up to date"
 
+mapfile -t feature_commits < <(git rev-list --reverse --no-merges "origin/$version..$feature")
 merged_prs "$version" "$feature" "$tmp_dir/merged-feature.json"
-python3 "$lib" messages "$tmp_dir/merged-feature.json" "$feature" >"$tmp_dir/known-feature"
-feature_merged=0 feature_new=()
-while IFS= read -r sha; do
-  if python3 "$lib" picked "origin/$version" "$sha" "$tmp_dir/known-feature"; then
-    feature_merged=$((feature_merged + 1))
-  else
-    feature_new+=("$sha")
-  fi
-done < <(git rev-list --reverse --no-merges "origin/$version..$feature")
+python3 "$lib" unshipped "origin/$version" --prs "$tmp_dir/merged-feature.json" \
+  --branch "$feature" -- "${feature_commits[@]}" >"$tmp_dir/feature-new" \
+  || die "could not compare $feature with its merged PRs"
+mapfile -t feature_new <"$tmp_dir/feature-new"
+feature_merged=$((${#feature_commits[@]} - ${#feature_new[@]}))
 if ((feature_merged)); then
   merged_url=$(python3 "$lib" merged-url "$tmp_dir/merged-feature.json" "$feature")
   if ((${#feature_new[@]})); then
@@ -161,11 +158,20 @@ if ((!no_staging)); then
   if [[ -z $highest ]]; then
     staging=$base_name staging_ref=origin/$version-staging staging_state=new
   else
-    if git show-ref --verify -q "refs/heads/$highest"; then
-      highest_ref=refs/heads/$highest
-    else
+    # Use whichever of the local and the remote branch is ahead: another
+    # Codespace may have pushed to it.
+    highest_ref=""
+    if [[ -n $(remote_sha "$highest") ]]; then
       git fetch -q origin "$highest"
       highest_ref=refs/remotes/origin/$highest
+    fi
+    if git show-ref --verify -q "refs/heads/$highest"; then
+      if [[ -z $highest_ref ]] \
+        || git merge-base --is-ancestor "$highest_ref" "refs/heads/$highest"; then
+        highest_ref=refs/heads/$highest
+      elif ! git merge-base --is-ancestor "refs/heads/$highest" "$highest_ref"; then
+        die "local $highest and origin/$highest have diverged; reconcile them, then rerun"
+      fi
     fi
     # Stale = upstream staging moved past what the branch was built on.
     if git merge-base --is-ancestor "origin/$version-staging" "$highest_ref"; then
@@ -177,11 +183,10 @@ if ((!no_staging)); then
   fi
 
   merged_prs "$version-staging" "$base_name" "$tmp_dir/merged-staging.json"
-  python3 "$lib" messages "$tmp_dir/merged-staging.json" "$base_name" --iterations \
-    >"$tmp_dir/known-staging"
-  while IFS= read -r sha; do
-    python3 "$lib" picked "$staging_ref" "$sha" "$tmp_dir/known-staging" || to_pick+=("$sha")
-  done < <(git rev-list --reverse --no-merges "origin/$version..$feature")
+  python3 "$lib" unshipped "$staging_ref" --prs "$tmp_dir/merged-staging.json" \
+    --branch "$base_name" --iterations -- "${feature_commits[@]}" >"$tmp_dir/to-pick" \
+    || die "could not compare $feature with $staging_ref"
+  mapfile -t to_pick <"$tmp_dir/to-pick"
 fi
 
 step "Plan for [$id] on $feature"
@@ -258,8 +263,10 @@ if ((!no_staging)); then
     if [[ $staging_state == reused ]]; then
       if git show-ref --verify -q "refs/heads/$staging"; then
         git checkout -q "$staging"
+        # Catch up with what was pushed from elsewhere (a fast-forward).
+        [[ $staging_ref == refs/heads/* ]] || git merge -q --ff-only "$staging_ref"
       else
-        git checkout -q -b "$staging" "refs/remotes/origin/$staging"
+        git checkout -q -b "$staging" "$staging_ref"
       fi
     else
       git checkout -q -b "$staging" "origin/$version-staging"

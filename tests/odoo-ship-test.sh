@@ -2,10 +2,13 @@
 # Exercises odoo-ship's ship.sh and watch_ci.sh against a local bare "origin"
 # and a fake gh. The cases that matter: the first ship opens both PRs and
 # resolves the staging manifest-version conflict, a rerun changes nothing, a
-# follow-up commit reuses the staging branch, a stale staging branch gets the
-# next -N and skips commits a squash-merged staging PR already brought, a real
-# conflict stops the run, --dry-run touches nothing, an already-merged feature
-# branch is refused, and --no-staging opens only the feature PR.
+# follow-up commit reuses the staging branch, a newer commit that reuses a
+# shipped message is still picked, a pick pushed from another Codespace is
+# caught up instead of repeated, a diverged local staging branch is refused, a
+# stale staging branch gets the next -N and skips commits a squash-merged
+# staging PR already brought, a real conflict stops the run, --dry-run touches
+# nothing, an already-merged feature branch is refused, and --no-staging opens
+# only the feature PR.
 
 set -euo pipefail
 
@@ -175,17 +178,65 @@ out=$(ship 2>&1) || fail "Follow-up ship failed: $out"
 [[ $(ahead_of_staging 18.0-staging-request-1) == 2 ]] \
   || fail 'Follow-up commit was not cherry-picked onto the reused staging branch.'
 
+# 3b. A newer commit that reuses a shipped commit's message is still picked.
+printf 'line five\n' >>"$repo/custom/mod_a/models.py"
+git -C "$repo" commit -q -am "[request-1] mod_a:" -m "Add feature two"
+out=$(ship 2>&1) || fail "Ship of a repeated message failed: $out"
+[[ $(ahead_of_staging 18.0-staging-request-1) == 3 ]] \
+  || fail 'A commit that reuses a shipped message was not cherry-picked.'
+remote_file 18.0-staging-request-1 models.py | grep -qx 'line five' \
+  || fail 'The repeated-message change is missing on staging.'
+
+# 3c. When another Codespace already pushed the pick, the stale local staging
+#     branch catches up instead of picking it again.
+printf 'line six\n' >>"$repo/custom/mod_a/models.py"
+git -C "$repo" commit -q -am "[request-1] mod_a:" -m "Add feature six"
+other="$work/other"
+git clone -q "$origin" "$other"
+git -C "$other" checkout -q 18.0-staging-request-1
+git -C "$other" fetch -q "$repo" 18.0-request-1
+# Its own committer date, as a pick made elsewhere would have; otherwise the
+# pick below could produce the very same commit.
+GIT_COMMITTER_DATE='2001-02-03T04:05:06Z' git -C "$other" cherry-pick FETCH_HEAD >/dev/null
+git -C "$other" push -q origin 18.0-staging-request-1
+comments_before=$(comments)
+out=$(ship 2>&1) || fail "Ship after a push from elsewhere failed: $out"
+[[ $(ahead_of_staging 18.0-staging-request-1) == 4 ]] \
+  || fail 'The pick pushed from elsewhere was picked again.'
+[[ $(git -C "$repo" rev-parse 18.0-staging-request-1) \
+  == $(git --git-dir="$origin" rev-parse 18.0-staging-request-1) ]] \
+  || fail 'The local staging branch did not catch up with origin.'
+[[ $(comments) == $((comments_before + 1)) ]] \
+  || fail 'Expected /run-tests on the feature PR only; staging was unchanged.'
+
+# 3d. A local staging branch that has diverged from origin is refused.
+git -C "$repo" checkout -q 18.0-staging-request-1
+printf 'local\n' >"$repo/custom/mod_a/LOCAL"
+git -C "$repo" add custom/mod_a/LOCAL
+git -C "$repo" commit -q -m "[request-1] mod_a:" -m "Local only"
+git -C "$repo" checkout -q 18.0-request-1
+printf 'remote\n' >"$other/custom/mod_a/REMOTE"
+git -C "$other" add custom/mod_a/REMOTE
+git -C "$other" commit -q -m "[request-1] mod_a:" -m "Remote only"
+git -C "$other" push -q origin 18.0-staging-request-1
+if out=$(ship 2>&1); then fail 'Shipped onto a diverged staging branch.'; fi
+grep -q 'local 18.0-staging-request-1 and origin/18.0-staging-request-1 have diverged' <<<"$out" \
+  || fail "Unexpected stop: $out"
+git -C "$repo" branch -q -f 18.0-staging-request-1 origin/18.0-staging-request-1
+
 # 4. After the staging PR is squash-merged, the next ship creates -2 and picks
 #    only the commit staging does not have yet.
 git -C "$seed" fetch -q origin
 git -C "$seed" merge -q --squash origin/18.0-staging-request-1 >/dev/null
-git -C "$seed" commit -q -m '[request-1] mod_a: (#2)' -m '* Add feature one' -m '* Add feature two'
+git -C "$seed" commit -q -m '[request-1] mod_a: (#2)' -m '* Add feature one, two, six'
 git -C "$seed" push -q origin 18.0-staging
 rm "$state/prs/18.0-staging..18.0-staging-request-1"
 cat >"$state/merged-18.0-staging.json" <<'EOF'
 [{"headRefName": "18.0-staging-request-1", "url": "https://github.com/360ERP/Test/pull/2",
   "commits": [{"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature one"},
-              {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature two"}]}]
+              {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature two"},
+              {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature two"},
+              {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature six"}]}]
 EOF
 feature_commit 's/^line three$/line three feature/' 'Add feature three' 18.0.1.2.0
 out=$(ship 2>&1) || fail "Ship after merge failed: $out"
@@ -228,6 +279,8 @@ cat >"$state/merged-18.0.json" <<'EOF'
 [{"headRefName": "18.0-request-1", "url": "https://github.com/360ERP/Test/pull/1",
   "commits": [{"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature one"},
               {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature two"},
+              {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature two"},
+              {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature six"},
               {"messageHeadline": "[request-1] mod_a:", "messageBody": "Add feature three"}]}]
 EOF
 if out=$(ship --no-staging 2>&1); then fail 'Shipped an already-merged branch.'; fi

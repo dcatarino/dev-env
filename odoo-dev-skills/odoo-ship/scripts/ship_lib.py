@@ -8,21 +8,20 @@ resolve-manifest PATH SHA
     18.0.2.11.0. Prints the new version. Exits 2 when the conflict is anything
     else, leaving the file untouched.
 
-messages JSON BRANCH [--iterations]
-    Print the commit messages of the merged PRs in JSON (`gh pr list --json
-    headRefName,url,commits`) whose head is BRANCH, or with --iterations also
-    BRANCH-<n>; separated by \x1e. Squash merges keep the original messages
-    only there.
+unshipped REF [--prs JSON --branch BRANCH [--iterations]] -- SHA...
+    Print, in order, the SHAs not yet shipped to REF. A commit counts as
+    shipped when REF's history, or a merged PR in JSON (`gh pr list --json
+    headRefName,url,commits`) whose head is BRANCH (with --iterations also
+    BRANCH-<n>), has a commit with the same message. Squash merges keep the
+    original messages only in the PR. Messages are compared with whitespace
+    normalized, and each shipped occurrence accounts for one SHA, oldest
+    first, so a newer commit that reuses a message is still unshipped.
 
 merged-url JSON BRANCH
     Print the URL of the first merged PR in JSON whose head is BRANCH.
-
-picked REF SHA [KNOWN]
-    Exit 0 when SHA's full message is already in REF's history or in KNOWN
-    (output of `messages`), i.e. SHA was already shipped there. Exit 1
-    otherwise. Whitespace is normalized, so rewrapping does not matter.
 """
 import json
+from collections import Counter
 import re
 import subprocess
 import sys
@@ -138,13 +137,6 @@ def pr_commit_message(commit):
     return normalize(head + "\n\n" + body)
 
 
-def messages(json_path, branch, iterations=False):
-    for pr in matching_prs(json_path, branch, iterations):
-        for commit in pr.get("commits", []):
-            sys.stdout.write(pr_commit_message(commit) + "\x1e")
-    return 0
-
-
 def merged_url(json_path, branch):
     prs = matching_prs(json_path, branch)
     if prs:
@@ -152,24 +144,49 @@ def merged_url(json_path, branch):
     return 0
 
 
-def picked(ref, sha, known_path=None):
-    message = normalize(git("log", "-1", "--format=%B", sha))
-    shipped = git("log", "--format=%B%x1e", "-n", "5000", ref).split("\x1e")
-    if known_path:
-        with open(known_path) as handle:
-            shipped += handle.read().split("\x1e")
-    return 0 if message in {normalize(m) for m in shipped} else 1
+def log_messages(*args):
+    """(sha, normalized message) pairs from `git log ARGS`."""
+    out = git("log", "--format=%H%x1f%B%x1e", *args)
+    pairs = (entry.strip().split("\x1f", 1) for entry in out.split("\x1e"))
+    return [(sha, normalize(body)) for sha, body in (p for p in pairs if len(p) == 2)]
+
+
+def unshipped(argv):
+    if not argv or "--" not in argv:
+        return 64
+    ref, options, shas = argv[0], argv[1 : argv.index("--")], argv[argv.index("--") + 1 :]
+    history = log_messages("-n", "5000", ref)
+    shipped = Counter(message for _, message in history)
+    if "--prs" in options:
+        in_history = {sha for sha, _ in history}
+        prs = matching_prs(
+            options[options.index("--prs") + 1],
+            options[options.index("--branch") + 1],
+            "--iterations" in options,
+        )
+        # A PR merged with a merge commit is already in REF's history.
+        for pr in prs:
+            for commit in pr.get("commits", []):
+                if commit.get("oid") not in in_history:
+                    shipped[pr_commit_message(commit)] += 1
+    if shas:
+        for sha, message in log_messages("--no-walk=unsorted", *shas):
+            if shipped[message]:
+                shipped[message] -= 1
+            else:
+                print(sha)
+    return 0
 
 
 def main(argv):
     if len(argv) == 3 and argv[0] == "resolve-manifest":
         return resolve_manifest(argv[1], argv[2])
-    if len(argv) in (3, 4) and argv[0] == "messages":
-        return messages(argv[1], argv[2], argv[3:] == ["--iterations"])
+    if argv and argv[0] == "unshipped":
+        status = unshipped(argv[1:])
+        if status != 64:
+            return status
     if len(argv) == 3 and argv[0] == "merged-url":
         return merged_url(argv[1], argv[2])
-    if len(argv) in (3, 4) and argv[0] == "picked":
-        return picked(*argv[1:])
     print(__doc__, file=sys.stderr)
     return 64
 

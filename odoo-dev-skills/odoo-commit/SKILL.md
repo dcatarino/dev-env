@@ -1,7 +1,7 @@
 ---
 name: odoo-commit
 description: This skill should be used when committing changes in an Odoo project — e.g. the user explicitly asks to commit, or to "commit ticket-XXXX / task-XXXX". Covers the required ticket/task identifier, the branch check, running pre-commit validation before committing, the exact commit message format (identifier + affected modules + concise description), and the no-co-authors rule.
-version: 1.1.1
+version: 1.2.0
 ---
 
 # Commit Odoo changes
@@ -20,6 +20,10 @@ task-1234
 ticket-5678
 request-891
 ```
+
+`task-0000` is the user's accepted placeholder for work without a ticket. When
+you ask for the identifier, offer it as the first option; never offer other
+guessed numbers.
 
 ## Check the branch before committing
 
@@ -40,10 +44,11 @@ pre-commit run --all-files
 
 Notes:
 
-- The **first run in a fresh codespace is slow** (it installs the hook
-  environments, which can take minutes). For that first run only, launch it as
-  a background task and wait for its completion notification — never
-  foreground-`sleep` or poll. Later runs are fast; run them normally.
+- Run it **once, in the foreground, after the last edit**.
+  `remote-codespace-setup.sh` pre-warms the hook environments, so it normally
+  finishes in under a minute; give the call a long timeout (10 minutes) in
+  case this Codespace's cache is still cold. Don't run it a second time before
+  committing (e.g. with `--files`): one passing `--all-files` run is enough.
 - pre-commit's formatters (e.g. ruff-format) may **rewrite files**. After it
   runs, re-read any file before editing it again, or the edit will fail with
   "file has been modified since read".
@@ -57,6 +62,14 @@ If it fails:
 
 Do **not** run Odoo unit tests as part of committing. The user runs those
 manually (see the `run-odoo-tests` skill if asked).
+
+## Manifest version
+
+When the change bumps a module's `version`, bump it from the version on the
+freshly fetched base branch (`git fetch origin 18.0`, then read
+`origin/18.0:<module>/__manifest__.py`), not from the local branch, which may be
+behind. The staging branch's version is settled when cherry-picking (see
+`odoo-staging-branch`).
 
 ## Step 2 — Commit message format
 
@@ -75,6 +88,10 @@ Rules:
 - List the affected module(s) after the bracket, comma-separated, no spaces.
 - Description is concise but useful — say what changed and why if non-obvious.
 - **Do not add co-authors** (no `Co-Authored-By` trailer).
+- Merge commits (e.g. merging `origin/18.0` into the feature branch) need the
+  same header; the repository's commit-msg hook rejects anything else.
+- Never send `git commit` output to `/dev/null`: a hook rejection must stay
+  visible. Check the exit code.
 
 Examples:
 
@@ -93,5 +110,5 @@ Fix invoice export payload for refunded payments
 ## After committing
 
 Report: which modules were affected, that `pre-commit run --all-files` was run
-(and passed), and that the commit was created. If a staging branch was also
-requested, hand off to the `odoo-staging-branch` skill.
+(and passed), and that the commit was created. If PRs were also requested, hand
+off to the `odoo-ship` skill (a staging branch alone: `odoo-staging-branch`).

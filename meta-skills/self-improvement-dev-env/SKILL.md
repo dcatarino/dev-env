@@ -1,7 +1,7 @@
 ---
 name: self-improvement-dev-env
 description: Manual-only skill (invoke with /self-improvement-dev-env) that improves the dev-env repo based on recent agent sessions. Covers mining auto-memory and Claude session transcripts for recurring errors and corrections, deciding what belongs in the always-loaded prompt vs a skill vs an on-demand reference, the editing conventions, and the commit/push/PR workflow specific to the personal dev-env repo (gh auth bypass).
-version: 1.2.0
+version: 1.2.1
 disable-model-invocation: true
 ---
 
@@ -10,8 +10,12 @@ disable-model-invocation: true
 This skill is never invoked automatically — it runs only when explicitly
 invoked with `/self-improvement-dev-env`.
 
-Improve `/workspaces/dev-env` (the shared agent prompts and skills) using
-evidence from recent sessions. The three goals, in order:
+Improve the dev-env checkout (the shared agent prompts and skills) using
+evidence from recent sessions. The checkout is `/dev-env`, or `~/dev-env` when
+the bootstrap could not create `/dev-env`; `readlink -f ~/.claude/CLAUDE.md`
+shows which. The commands below use `/dev-env`.
+
+The three goals, in order:
 
 1. **Agents get smarter** — encode real environment knowledge and conventions.
 2. **Agents commit fewer errors** — turn observed mistakes into guardrails.
@@ -30,7 +34,7 @@ previous self-improvement commit by its message (not just the latest commit,
 which may be unrelated):
 
 ```bash
-git -C /workspaces/dev-env log --oneline -15
+git -C /dev-env log --oneline -15
 ```
 
 If no prior self-improvement commit is identifiable, ask the user which window
@@ -40,7 +44,7 @@ to mine (or default to the last two weeks).
 and is far higher signal than string-matching raw transcripts:
 
 ```bash
-cat ~/.claude/projects/*/MEMORY.md
+cat ~/.claude/projects/*/memory/MEMORY.md
 grep -l "type: feedback\|type: project" ~/.claude/projects/*/memory/*.md
 ```
 
@@ -74,8 +78,8 @@ it must be generalized (a rule, not an anecdote).
 - Read `odoo-agent.md` and every `SKILL.md`; read `CLAUDE.md` for the repo's
   editing rules.
 - Check the install wiring: symlinks in `~/.claude/skills/` and
-  `~/.claude/CLAUDE.md` must resolve into `/workspaces/dev-env`. If not,
-  re-run `bash /workspaces/dev-env/remote-codespace-setup.sh`.
+  `~/.claude/CLAUDE.md` must resolve into `/dev-env`. If not,
+  re-run `bash /dev-env/remote-codespace-setup.sh`.
 
 ## Step 3 — Decide placement
 
@@ -164,8 +168,8 @@ If Step 1 finds no memory at all, check that the store is wired up before
 concluding there was nothing to learn:
 
 ```bash
-bash /workspaces/dev-env/persist-agent-memory.sh
-ls /workspaces/dev-env/memory/*/
+bash /dev-env/persist-agent-memory.sh
+ls /dev-env/memory/*/
 ```
 
 ## After finishing

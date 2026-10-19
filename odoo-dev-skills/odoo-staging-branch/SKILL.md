@@ -1,13 +1,16 @@
 ---
 name: odoo-staging-branch
-description: This skill should be used when the user explicitly asks to create and commit on an Odoo staging branch — e.g. "commit the changes, ticket-XXXX, and create and commit on a staging branch". Covers determining the Odoo version, the staging branch naming convention, branching from the matching upstream staging branch, detecting when a local staging branch has gone stale (because the upstream staging branch advanced) and creating an incremented -N branch, and cherry-picking the feature-branch commit onto it (including repeated iterations).
-version: 1.1.2
+description: This skill should be used when the user explicitly asks to create and commit on an Odoo staging branch — e.g. "commit the changes, ticket-XXXX, and create and commit on a staging branch". Covers determining the Odoo version, the staging branch naming convention, branching from the matching upstream staging branch, detecting when a local staging branch has gone stale (because the upstream staging branch advanced) and creating an incremented -N branch, cherry-picking the feature-branch commit onto it (including repeated iterations) and resolving its manifest-version conflict, opening the staging PR, and checking a submodule-pointer bump before making it.
+version: 1.2.0
 ---
 
 # Odoo staging branch workflow
 
 Use this only when the user **explicitly asks** for a staging branch. Never
 create or rename branches on your own initiative.
+
+For the usual feature PR + staging PR pair, the `odoo-ship` skill's script runs
+Steps 3–5 and both PRs in one go; this skill stays the reference for the rules.
 
 A typical request looks like:
 
@@ -101,6 +104,12 @@ Examples of the progression (identifier `ticket-1`):
 git cherry-pick <commit_hash>
 ```
 
+A conflict on the manifest `version` line alone is expected: staging's version
+runs ahead of the feature branch's. Keep staging's version and bump it at the
+level the feature commit bumped (staging `18.0.2.10.0` + a minor bump →
+`18.0.2.11.0`), then `git add` the manifest and `git cherry-pick --continue`.
+Stop and ask on any other conflict.
+
 ## Step 5 — Push (only when asked to always push)
 
 If the user's working instructions for the session say to **always push** (or
@@ -126,6 +135,28 @@ commit does not count after a later remote-updating push; personal repositories
 never receive this comment.
 
 Otherwise leave pushing to the user.
+
+When the user asked for the staging PR, open it after the push, then post one
+`/run-tests` on it:
+
+```bash
+gh pr create --base <odoo_version>-staging --head <staging_branch> \
+  --title "<feature PR title> (staging)" \
+  --body "Staging counterpart of #<feature_pr>, cherry-picked onto \`<odoo_version>-staging\`. ..."
+```
+
+## Bumping a submodule pointer on staging
+
+Before pointing a customer staging branch's `360_integrations` (or another
+submodule) at a new commit, check that the current pin is an ancestor of it:
+
+```bash
+git -C 360_integrations merge-base --is-ancestor <current_pin> <new_commit>
+```
+
+If it is not, staging runs framework code from an unmerged branch, and the bump
+would remove code staging depends on. Stop and tell the user which PR the
+current pin comes from, so it can be merged first.
 
 ## Iterations in the same session
 

@@ -1,7 +1,7 @@
 ---
 name: odoo-integrations
 description: This skill should be used when working on Odoo integration code — nexus_* modules in 360_integrations, customer Integrations-<Customer> repos (e.g. matrabike_integrations, pauw_integrations), syncs with external systems (Shopify, Plytix, Picqer, Magento, WooCommerce, ...), or OCA queue_job flows. Covers where the nexus framework knowledge lives, verifying external-API capabilities, Shopify GraphQL validation in this environment, and queue_job behavior.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Odoo integration work (nexus framework)
@@ -24,12 +24,24 @@ Customer repos (`/workspaces/Integrations-<Customer>`, one module named
 module is often the intended reference implementation — check with the user
 which one to mirror before inventing a new pattern.
 
+In a customer repo, read framework code (and these docs) from its pinned
+submodule, `<repo>/360_integrations`: that is the version the customer runs.
+The top-level `/workspaces/360_integrations` checkout is for framework PRs and
+may sit on an unrelated branch.
+
 ## External APIs: verify, don't assume
 
 Never build a plan on an external-API capability you haven't confirmed. Check
 the official API docs or the existing connector code and query documents first.
 If a needed capability doesn't exist, say so and propose an alternative instead
 of designing around a guess.
+
+## Changing a mapping or branching rule
+
+When a change moves what decides a branch of a sync (B2B or B2C, found or not
+found, create or update), show a before/after table per case before editing:
+every field each branch sends and where it now comes from. Cover each case in a
+test, including the real sample payload with its optional fields missing.
 
 ## Shopify specifics
 

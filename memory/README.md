@@ -10,7 +10,8 @@ survives rebuilds and follows you to any Codespace that runs the installer.
 ## Layout
 
 One directory per project, named the way Claude Code encodes the project path
-(`/workspaces/360_generic` → `-workspaces-360_generic`):
+(`/workspaces/360_generic` → `-workspaces-360_generic`; sessions started in
+`/workspaces` itself use `-workspaces`):
 
 ```
 memory/

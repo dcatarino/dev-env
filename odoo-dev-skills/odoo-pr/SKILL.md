@@ -1,13 +1,17 @@
 ---
 name: odoo-pr
 description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with a /run-tests comment, and the GitHub auth model (org token vs personal repos).
-version: 1.0.5
+version: 1.1.0
 ---
 
 # Open a pull request
 
 Use this only when the user **explicitly asks** to push or open a pull request.
 Never push or open PRs on your own initiative.
+
+In 360ERP repos, the `odoo-ship` skill's script runs the push, PR and
+`/run-tests` steps below (and the staging pair) in one go; this skill stays the
+reference and covers personal repos.
 
 ## Prerequisites
 
@@ -31,6 +35,9 @@ gh pr create --base 18.0 \
 - The title follows the commit subject format: identifier in brackets, affected
   module(s), concise description.
 - The body briefly says what changed, why, and how it was validated.
+- To update an existing PR's description, start from
+  `gh pr view <pr_number> --json body --jq .body`; a scratchpad copy may be
+  gone.
 
 Immediately after creating the PR, post one fresh `/run-tests` comment. The
 initial push may have had no PR yet, so do not comment before creation and then
@@ -39,6 +46,10 @@ again after it; comment once after the PR exists:
 ```bash
 gh pr comment <pr_number> --body "/run-tests"
 ```
+
+`/run-tests` dispatches the `test.yml` workflow on the PR's head branch, so the
+run never shows up in `gh pr checks`. Watch it as a background task with
+`odoo-ship`'s `scripts/watch_ci.sh <branch>`, and report the result.
 
 ## Push/update a PR — 360ERP org repos
 

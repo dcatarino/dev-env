@@ -29,8 +29,9 @@ hosts_file=${ssh_dir}/herdr-codespaces
 ssh_config=${ssh_dir}/config
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/herdr-codespaces
 # A failed `machine add` (usually: herdr is not installed in that Codespace
-# yet) is retried only after this many minutes, so a timer does not open an
-# SSH connection to the same Codespace every run.
+# yet) is retried by the window's background sync only after this many
+# minutes, so the timer does not open an SSH connection to the same Codespace
+# every run. Running herdr-codespaces yourself always retries it.
 retry_minutes=${HERDR_CODESPACES_RETRY_MINUTES:-10}
 
 die() {
@@ -163,8 +164,9 @@ recently_failed() {
   [[ -f "$marker" ]] && [[ -n "$(find "$marker" -mmin "-$retry_minutes" 2>/dev/null)" ]]
 }
 
+# Pass "background" to skip Codespaces whose connection failed recently.
 sync_main() {
-  local self codespaces_json machines_json actions
+  local mode=${1:-foreground} self codespaces_json machines_json actions
   local action subject detail output added=0 failed=0
   self=$(self_path)
 
@@ -181,7 +183,7 @@ sync_main() {
     [[ -n "$action" ]] || continue
     case "$action" in
       add)
-        if recently_failed "$subject"; then
+        if [[ "$mode" == background ]] && recently_failed "$subject"; then
           continue
         fi
         printf 'Connecting %s...\n' "$detail"
@@ -222,7 +224,7 @@ sync_main() {
     printf 'Connected %d Codespace(s).\n' "$added"
   fi
   if (( failed > 0 )); then
-    printf '%d Codespace(s) could not be connected; retrying in %d minutes.\n' \
+    printf '%d Codespace(s) could not be connected; an open window retries after %d minutes, herdr-codespaces sync retries now.\n' \
       "$failed" "$retry_minutes"
   fi
 }
@@ -235,7 +237,7 @@ window_main() {
   (
     trap 'exit 0' TERM
     while sleep "$sync_interval"; do
-      sync_main >>"$sync_log" 2>&1 || true
+      sync_main background >>"$sync_log" 2>&1 || true
     done
   ) &
   sync_pid=$!

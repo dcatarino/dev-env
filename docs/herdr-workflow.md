@@ -89,10 +89,10 @@ Select an agent to see its terminal and type into it, exactly as in Cursor.
 Cursor and the window can show the same agent at the same time.
 
 While the window is open the list refreshes every two minutes: newly opened
-Codespaces appear, stopped ones are disabled, deleted ones disappear. A
-Codespace without Herdr yet (bootstrap still running) is retried after ten
-minutes, or immediately with `herdr-codespaces sync` after deleting
-`~/.cache/herdr-codespaces/add-failed/<codespace>`.
+Codespaces appear, stopped ones are disabled, deleted ones disappear. The
+window retries a Codespace without Herdr yet (bootstrap still running) after
+ten minutes; `herdr-codespaces sync`, or reopening the window, retries it
+immediately.
 
 ### 4. Detach
 

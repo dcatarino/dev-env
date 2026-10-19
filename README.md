@@ -213,7 +213,8 @@ Notes:
 - Only agents started with `herd` (or inside `herdr`) are visible; a plain
   `claude` in a Cursor terminal is not.
 - A Codespace appears once its bootstrap has installed Herdr. If it was not
-  ready, it is retried after 10 minutes.
+  ready, the open window retries it after 10 minutes; `herdr-codespaces sync`
+  retries it immediately.
 - Herdr never starts a stopped Codespace: its SSH connection goes through a
   guard that refuses Codespaces that are not `Available`. Open the Codespace
   with a launcher first.

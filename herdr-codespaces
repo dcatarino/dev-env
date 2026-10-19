@@ -33,6 +33,10 @@ cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/herdr-codespaces
 # minutes, so the timer does not open an SSH connection to the same Codespace
 # every run. Running herdr-codespaces yourself always retries it.
 retry_minutes=${HERDR_CODESPACES_RETRY_MINUTES:-10}
+# Every open window syncs in the background, and two syncs at once would both
+# add a Codespace that just started, so it would appear twice. A sync holds
+# this directory while it runs (mkdir is atomic; macOS has no flock).
+lock_dir=$cache_dir/sync.lock
 
 die() {
   printf 'herdr-codespaces: %s\n' "$*" >&2
@@ -125,7 +129,8 @@ write_hosts_file() {
   fi
 }
 
-# Prints one tab-separated action per line: add/enable/disable/remove.
+# Prints one tab-separated action per line:
+# add/enable/disable/remove/remove-duplicate.
 plan_actions() {
   local codespaces_json=$1 machines_json=$2
   jq -r -n \
@@ -136,8 +141,13 @@ plan_actions() {
       ($c.repository | split("/") | last) + " ("
       + ($c.name | split("-") | if length > 1 then .[:-1] else . end | join("-"))
       + ")";
-    ($machines | map(select(.target | startswith($prefix)))) as $managed
-    | ($managed | map({key: (.target | ltrimstr($prefix)), value: .}) | from_entries)
+    # Machines of the same Codespace, the enabled and then the selected one
+    # first. Syncs that ran at once (before the lock) added some twice.
+    ($machines | map(select(.target | startswith($prefix)))
+      | group_by(.target)
+      | map(sort_by([(.enabled | not), (.selected // false | not)])))
+      as $groups
+    | ($groups | map({key: (.[0].target | ltrimstr($prefix)), value: .[0]}) | from_entries)
       as $machine_for
     | ($codespaces | map({key: .name, value: true}) | from_entries) as $exists
     | (
@@ -151,10 +161,13 @@ plan_actions() {
           else empty end
       ),
       (
-        $managed[]
-        | (.target | ltrimstr($prefix)) as $name
-        | select($exists[$name] | not)
-        | ["remove", .id, $name]
+        $groups[] | .[1:][]
+        | ["remove-duplicate", .id, .label]
+      ),
+      (
+        $machine_for | to_entries[]
+        | select($exists[.key] | not)
+        | ["remove", .value.id, .key]
       )
     | @tsv'
 }
@@ -164,11 +177,50 @@ recently_failed() {
   [[ -f "$marker" ]] && [[ -n "$(find "$marker" -mmin "-$retry_minutes" 2>/dev/null)" ]]
 }
 
+# Removes the lock of a sync that ended without unlocking (it failed or was
+# killed). Several syncs can find it at once, and the first to remove it then
+# takes a new lock, so one sync at a time reclaims it, and only while it still
+# names the dead sync. Returns 1 while another sync is reclaiming it.
+reclaim_lock() {
+  local dead=$1
+  mkdir "$lock_dir.reclaim" 2>/dev/null || return 1
+  if [[ "$(cat "$lock_dir/pid" 2>/dev/null || true)" == "$dead" ]]; then
+    rm -rf "$lock_dir"
+  fi
+  rmdir "$lock_dir.reclaim"
+}
+
+# Takes the sync lock. While another sync runs, a background sync gives up
+# (returns 1) and a foreground sync waits for it.
+lock_sync() {
+  local mode=$1 holder waited=0
+  until mkdir "$lock_dir" 2>/dev/null; do
+    holder=$(cat "$lock_dir/pid" 2>/dev/null || true)
+    if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null \
+      && reclaim_lock "$holder"; then
+      continue
+    fi
+    [[ "$mode" == foreground ]] || return 1
+    if (( waited == 0 )); then
+      printf 'Waiting for another herdr-codespaces sync to finish...\n'
+    elif (( waited >= 300 )); then
+      die "the sync lock (pid ${holder:-unknown}) is still held after 5 minutes; if no sync is running, remove $lock_dir and $lock_dir.reclaim"
+    fi
+    waited=$((waited + 1))
+    sleep 1
+  done
+  # sh's parent is this shell. In the window's background subshell $$ is the
+  # window's pid, and the bash 3.2 of macOS has no $BASHPID.
+  sh -c 'echo "$PPID"' >"$lock_dir/pid"
+}
+
 # Pass "background" to skip Codespaces whose connection failed recently.
 sync_main() {
   local mode=${1:-foreground} self codespaces_json machines_json actions
   local action subject detail output added=0 failed=0
   self=$(self_path)
+  mkdir -p "$cache_dir/add-failed" "$cache_dir/auto-disabled"
+  lock_sync "$mode" || return 0
 
   codespaces_json=$(gh codespace list --limit 200 --json name,repository,state) \
     || die "could not list Codespaces (is gh logged in with the codespace scope?)"
@@ -177,7 +229,6 @@ sync_main() {
 
   write_hosts_file "$self"
   actions=$(plan_actions "$codespaces_json" "$machines_json")
-  mkdir -p "$cache_dir/add-failed" "$cache_dir/auto-disabled"
 
   while IFS=$'\t' read -r action subject detail label; do
     [[ -n "$action" ]] || continue
@@ -217,8 +268,13 @@ sync_main() {
         rm -f "$cache_dir/add-failed/$detail" "$cache_dir/auto-disabled/$detail"
         printf 'Removed deleted Codespace %s\n' "$detail"
         ;;
+      remove-duplicate)
+        "$herdr_bin" machine remove "$subject" >/dev/null
+        printf 'Removed a duplicate of %s\n' "$detail"
+        ;;
     esac
   done <<<"$actions"
+  rm -rf "$lock_dir"
 
   if (( added > 0 )); then
     printf 'Connected %d Codespace(s).\n' "$added"
@@ -237,7 +293,8 @@ window_main() {
   (
     trap 'exit 0' TERM
     while sleep "$sync_interval"; do
-      sync_main background >>"$sync_log" 2>&1 || true
+      # A subshell, so a sync that dies (gh offline) does not end the loop.
+      ( sync_main background ) >>"$sync_log" 2>&1 || true
     done
   ) &
   sync_pid=$!

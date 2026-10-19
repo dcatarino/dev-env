@@ -218,6 +218,9 @@ Notes:
 - A Codespace appears once its bootstrap has installed Herdr. If it was not
   ready, the open window retries it after 10 minutes; `herdr-codespaces sync`
   retries it immediately.
+- Several windows on one computer show the same session and sync one at a
+  time. A Codespace that two syncs added at once (before this was fixed)
+  appears twice; the next sync removes the extra machine.
 - Herdr never starts a stopped Codespace: its SSH connection goes through a
   guard that refuses Codespaces that are not `Available`. Open the Codespace
   with a launcher first.

@@ -7,12 +7,21 @@
 # they are working, blocked on a question, or done. Stopped Codespaces are
 # disabled instead of removed and re-enabled when they run again; deleted ones
 # are removed. A machine you disable yourself (herdr machine disable) stays
-# disabled.
+# disabled. A Codespace you hide has no machine, so it leaves the sidebar, until
+# you show it again; it keeps running.
 #
 # Usage:
 #   herdr-codespaces          sync, then open the Herdr window; while it is open
 #                             the list is synced again every 2 minutes
 #   herdr-codespaces sync     sync the machine list once
+#   herdr-codespaces hide CODESPACE
+#                             remove a Codespace from the window and keep it out
+#   herdr-codespaces show [CODESPACE]
+#                             bring a hidden Codespace back; without CODESPACE,
+#                             list the hidden ones
+#
+# CODESPACE is the repository (Integrations-Pauw) or the Codespace's name, in
+# full or as the sidebar shows it (expert-potato).
 #
 # The window opens the local Herdr session "codespaces" (override with
 # HERDR_SESSION), so it never attaches to, or asks to replace, a local Herdr
@@ -130,12 +139,14 @@ write_hosts_file() {
 }
 
 # Prints one tab-separated action per line:
-# add/enable/disable/remove/remove-duplicate.
+# add/enable/disable/remove/remove-duplicate/hide/forget. HIDDEN lists the
+# names of hidden Codespaces, one per line.
 plan_actions() {
-  local codespaces_json=$1 machines_json=$2
+  local codespaces_json=$1 machines_json=$2 hidden=$3
   jq -r -n \
     --argjson codespaces "$codespaces_json" \
     --argjson machines "$machines_json" \
+    --arg hidden "$hidden" \
     --arg prefix "$host_prefix" '
     def machine_label($c):
       ($c.repository | split("/") | last) + " ("
@@ -150,10 +161,14 @@ plan_actions() {
     | ($groups | map({key: (.[0].target | ltrimstr($prefix)), value: .[0]}) | from_entries)
       as $machine_for
     | ($codespaces | map({key: .name, value: true}) | from_entries) as $exists
+    | ($hidden | split("\n") | map(select(length > 0))) as $hidden_names
+    | ($hidden_names | map({key: ., value: true}) | from_entries) as $is_hidden
     | (
         $codespaces[] as $c
         | $machine_for[$c.name] as $m
-        | if $c.state == "Available" then
+        | if $is_hidden[$c.name] then
+            if $m != null then ["hide", $m.id, $c.name, machine_label($c)] else empty end
+          elif $c.state == "Available" then
             if $m == null then ["add", $c.name, machine_label($c)]
             elif ($m.enabled | not) then ["enable", $m.id, $c.name, machine_label($c)]
             else empty end
@@ -168,6 +183,11 @@ plan_actions() {
         $machine_for | to_entries[]
         | select($exists[.key] | not)
         | ["remove", .value.id, .key]
+      ),
+      (
+        $hidden_names[]
+        | select($exists[.] | not)
+        | ["forget", .]
       )
     | @tsv'
 }
@@ -219,7 +239,7 @@ sync_main() {
   local mode=${1:-foreground} self codespaces_json machines_json actions
   local action subject detail output added=0 failed=0
   self=$(self_path)
-  mkdir -p "$cache_dir/add-failed" "$cache_dir/auto-disabled"
+  mkdir -p "$cache_dir/add-failed" "$cache_dir/auto-disabled" "$cache_dir/hidden"
   lock_sync "$mode" || return 0
 
   codespaces_json=$(gh codespace list --limit 200 --json name,repository,state) \
@@ -228,7 +248,8 @@ sync_main() {
     || die "$herdr_bin does not support saved machines; install herdr 0.9.5 or newer"
 
   write_hosts_file "$self"
-  actions=$(plan_actions "$codespaces_json" "$machines_json")
+  actions=$(plan_actions "$codespaces_json" "$machines_json" \
+    "$(ls -1 "$cache_dir/hidden")")
 
   while IFS=$'\t' read -r action subject detail label; do
     [[ -n "$action" ]] || continue
@@ -272,6 +293,15 @@ sync_main() {
         "$herdr_bin" machine remove "$subject" >/dev/null
         printf 'Removed a duplicate of %s\n' "$detail"
         ;;
+      hide)
+        "$herdr_bin" machine remove "$subject" >/dev/null
+        rm -f "$cache_dir/add-failed/$detail" "$cache_dir/auto-disabled/$detail"
+        printf 'Removed %s from the window\n' "$label"
+        ;;
+      forget)
+        # A hidden Codespace that was deleted.
+        rm -f "$cache_dir/hidden/$subject"
+        ;;
     esac
   done <<<"$actions"
   rm -rf "$lock_dir"
@@ -282,6 +312,44 @@ sync_main() {
   if (( failed > 0 )); then
     printf '%d Codespace(s) could not be connected; an open window retries after %d minutes, herdr-codespaces sync retries now.\n' \
       "$failed" "$retry_minutes"
+  fi
+}
+
+# Hides a Codespace (`hide`) or shows a hidden one again (`show`), then syncs.
+# `show` without a Codespace lists the hidden ones.
+hide_main() {
+  local command=$1 query=${2:-} codespaces_json matches name
+  (( $# <= 2 )) || die "usage: herdr-codespaces $command CODESPACE"
+  mkdir -p "$cache_dir/hidden"
+  if [[ "$command" == show && -z "$query" ]]; then
+    ls -1 "$cache_dir/hidden" | grep . || printf 'No Codespace is hidden.\n'
+    return 0
+  fi
+  [[ -n "$query" ]] || die "usage: herdr-codespaces hide CODESPACE"
+
+  codespaces_json=$(gh codespace list --limit 200 --json name,repository) \
+    || die "could not list Codespaces (is gh logged in with the codespace scope?)"
+  matches=$(jq -r --arg query "$query" '
+    ($query | ascii_downcase) as $q
+    | .[]
+    | select((.name | ascii_downcase) as $name
+        | $name == $q or ($name | startswith($q + "-"))
+          or (.repository | split("/") | last | ascii_downcase) == $q)
+    | .name' <<<"$codespaces_json")
+  case "$(grep -c . <<<"$matches" || true)" in
+    0) die "no Codespace matches '$query' (see gh codespace list)" ;;
+    1) name=$matches ;;
+    *) die "'$query' matches several Codespaces; name one of: $(tr '\n' ' ' <<<"$matches")" ;;
+  esac
+
+  if [[ "$command" == hide ]]; then
+    touch "$cache_dir/hidden/$name"
+    sync_main
+    printf '%s stays out of the window until: herdr-codespaces show %s\n' "$name" "$query"
+  else
+    [[ -e "$cache_dir/hidden/$name" ]] || die "$name is not hidden"
+    rm -f "$cache_dir/hidden/$name"
+    sync_main
   fi
 }
 
@@ -315,13 +383,20 @@ main() {
       awk 'NR > 2 && !/^#/ { exit } NR > 2 { sub(/^# ?/, ""); print }' \
         "${BASH_SOURCE[0]}"
       ;;
-    sync|"")
+    sync|""|hide|show)
       command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is not installed"
       command -v jq >/dev/null 2>&1 || die "jq is not installed"
       command -v "$herdr_bin" >/dev/null 2>&1 \
         || die "herdr is not installed: curl -fsSL https://herdr.dev/install.sh | sh"
-      sync_main
-      [[ "${1:-}" == sync ]] || window_main
+      case "${1:-}" in
+        hide|show)
+          hide_main "$@"
+          ;;
+        *)
+          sync_main
+          [[ "${1:-}" == sync ]] || window_main
+          ;;
+      esac
       ;;
     *)
       die "unknown command: $1 (see herdr-codespaces --help)"

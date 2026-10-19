@@ -207,9 +207,12 @@ deleted ones are removed. `herdr-codespaces sync` syncs once without opening
 the window.
 
 To leave, detach with `ctrl+b q`: the window closes and every agent keeps
-running in its Codespace. To drop one Codespace from the window, use
-`herdr machine list` and `herdr machine disable <id>`; its agents keep running
-and the sync does not re-enable it. `herdr machine enable <id>` brings it back.
+running in its Codespace. To drop one Codespace from the window, run
+`herdr-codespaces hide Integrations-Pauw` (its repository, or its Codespace
+name as the sidebar shows it); its agents keep running and the sync does not
+add it back. `herdr-codespaces show Integrations-Pauw` brings it back, and
+`herdr-codespaces show` lists the hidden ones. `herdr machine disable <id>`
+only greys a Codespace out in the sidebar.
 
 Notes:
 

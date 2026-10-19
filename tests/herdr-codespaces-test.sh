@@ -240,6 +240,36 @@ sed '$d' "$script" >"$work_dir/functions.sh"
   [[ ! -e "$lock_dir" ]] || fail "a dead sync's lock was not removed"
 )
 
+# hide removes a Codespace's machines and keeps it out of the window. It takes
+# the repository or the Codespace's name as the sidebar shows it.
+hidden_dir="$work_dir/cache/herdr-codespaces/hidden"
+: >"$herdr_log"
+output=$(run_sync hide PAUW 2>&1) || fail "hide by repository failed: $output"
+[[ -e "$hidden_dir/eta-cs-x7" ]] || fail "hide did not record eta"
+grep -Fqx 'machine remove ep_eta_b' "$herdr_log" || fail "hide did not remove eta's machine"
+grep -Fqx 'machine remove ep_eta_a' "$herdr_log" || fail "hide kept eta's duplicate"
+run_sync hide alpha-cs >/dev/null 2>&1 || fail "hide by Codespace name failed"
+[[ -e "$hidden_dir/alpha-cs-x1" ]] || fail "hide did not record alpha"
+if run_sync hide nothing-here >/dev/null 2>&1; then
+  fail "hide accepted a Codespace that does not exist"
+fi
+: >"$herdr_log"
+run_sync sync >/dev/null 2>&1
+grep -Fq 'machine add herdr-cs.alpha' "$herdr_log" && fail "a sync added a hidden Codespace"
+[[ "$(run_sync show 2>&1)" == $'alpha-cs-x1\neta-cs-x7' ]] \
+  || fail "show did not list the hidden Codespaces"
+
+# show brings one back at once.
+: >"$herdr_log"
+run_sync show alpha-cs >/dev/null 2>&1 || fail "show failed"
+[[ ! -e "$hidden_dir/alpha-cs-x1" ]] || fail "show kept alpha hidden"
+grep -Fq 'machine add herdr-cs.alpha-cs-x1' "$herdr_log" || fail "show did not add alpha back"
+
+# A hidden Codespace that was deleted is forgotten.
+touch "$hidden_dir/delta-cs-x4"
+run_sync sync >/dev/null 2>&1
+[[ ! -e "$hidden_dir/delta-cs-x4" ]] || fail "a deleted Codespace stayed hidden"
+
 # The guard only lets SSH through to an Available Codespace.
 guard() {
   PATH="$fake_bin:/usr/bin:/bin" FAKE_GH_LOG="$gh_log" \

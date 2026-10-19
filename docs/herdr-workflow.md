@@ -107,7 +107,7 @@ immediately.
 | Close the overview window | `ctrl+b q` — all agents keep running. |
 | Leave an agent in a Cursor terminal | `ctrl+b q`, or just close the terminal or Cursor. |
 | Return to an agent in a Codespace | `herd ls`, then `herd attach <name>`. |
-| Hide one Codespace from the window | `herdr machine list`, then `herdr machine disable <id>`. The sync keeps it hidden; `herdr machine enable <id>` shows it again. Its agents keep running. |
+| Remove one Codespace from the window | `herdr-codespaces hide <repository>` (or its Codespace name). Its agents keep running and the sync does not add it back; `herdr-codespaces show <repository>` brings it back. `herdr machine disable <id>` only greys it out. |
 | Send a literal `ctrl+b` to the agent | `ctrl+b ctrl+b`. |
 
 ### 5. Finish an agent
@@ -136,6 +136,8 @@ herdr                                    # full Herdr UI for this Codespace
 # On the VPS or Mac
 herdr-codespaces                         # sync and open the overview
 herdr-codespaces sync                    # sync only
+herdr-codespaces hide <repository>       # remove a Codespace from the window
+herdr-codespaces show [<repository>]     # bring it back, or list hidden ones
 herdr machine list                       # connected Codespaces
 herdr machine status                     # reachability check
 herdr --machine "<label>" agent list     # one Codespace's agents, as JSON

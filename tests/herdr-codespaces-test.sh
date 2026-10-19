@@ -89,6 +89,18 @@ case "$1 ${2:-}" in
     [[ "$3" != *epsilon* ]] || { echo "error: herdr not installed; machine was not saved" >&2; exit 1; }
     ;;
   "machine enable"|"machine disable"|"machine remove") ;;
+  "--session codespaces")
+    # The window stays open until the background sync has logged
+    # FAKE_WAIT_COUNT calls starting with FAKE_WAIT_FOR.
+    [[ -z "${FAKE_BACKDATE:-}" ]] || touch -t 202001010000 "$FAKE_BACKDATE"
+    for _ in $(seq 1 100); do
+      count=$(grep -c "^$FAKE_WAIT_FOR" "$FAKE_HERDR_LOG" || true)
+      (( count >= FAKE_WAIT_COUNT )) && exit 0
+      sleep 0.1
+    done
+    echo "the background sync did not run" >&2
+    exit 4
+    ;;
   *) echo "unexpected herdr call: $*" >&2; exit 1 ;;
 esac
 FAKE_HERDR
@@ -131,19 +143,29 @@ grep -Fq "ProxyCommand \"$script\" proxy /usr/bin/gh cs ssh -c alpha-cs-x1 --std
 [[ "$(stat -c %a "$hosts" 2>/dev/null || stat -f %Lp "$hosts")" == 600 ]] \
   || fail "host file is not private"
 
-# Reruns keep one Include and do not retry the failed Codespace immediately.
+# Reruns keep one Include. A sync you run retries a failed Codespace at once:
+# its bootstrap may have installed herdr since.
 : >"$herdr_log"
 run_sync sync >/dev/null 2>&1
 [[ "$(grep -Fc 'Include ~/.ssh/herdr-codespaces' "$fake_home/.ssh/config")" == 1 ]] \
   || fail "Include was added more than once"
-grep -Fq 'epsilon' "$herdr_log" && fail "failed Codespace was retried before the back-off"
+grep -Fq 'machine add herdr-cs.epsilon-cs-x5' "$herdr_log" \
+  || fail "a sync you run did not retry the failed Codespace"
+
+# The window's background sync skips it until the back-off has passed.
+: >"$herdr_log"
+FAKE_WAIT_FOR='machine list' FAKE_WAIT_COUNT=3 HERDR_CODESPACES_SYNC_SECONDS=0.1 \
+  run_sync >/dev/null 2>&1 || fail "the window did not sync in the background"
+[[ "$(grep -c 'machine add herdr-cs.epsilon-cs-x5' "$herdr_log")" == 1 ]] \
+  || fail "the background sync retried a failed Codespace before the back-off"
 
 # A failure marker older than the back-off is retried. Backdate it: BSD find
 # treats a file touched in the current second as newer than -mmin -0.
-touch -t 202001010000 "$work_dir/cache/herdr-codespaces/add-failed/epsilon-cs-x5"
-run_sync sync >/dev/null 2>&1 || true
-grep -Fq 'machine add herdr-cs.epsilon-cs-x5' "$herdr_log" \
-  || fail "failed Codespace was not retried after the back-off"
+: >"$herdr_log"
+FAKE_BACKDATE="$work_dir/cache/herdr-codespaces/add-failed/epsilon-cs-x5" \
+  FAKE_WAIT_FOR='machine add herdr-cs.epsilon-cs-x5' FAKE_WAIT_COUNT=2 \
+  HERDR_CODESPACES_SYNC_SECONDS=0.1 run_sync >/dev/null 2>&1 \
+  || fail "the background sync did not retry a failed Codespace after the back-off"
 
 # The guard only lets SSH through to an Available Codespace.
 guard() {

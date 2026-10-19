@@ -25,15 +25,17 @@ fail() {
 # Codespaces: alpha is running and not yet a machine, beta is running and its
 # machine was disabled by an earlier sync when it stopped, zeta is running but
 # its machine was disabled by the user, gamma is stopped with an enabled
-# machine, delta's Codespace was deleted, and epsilon is running but herdr add
-# fails there.
+# machine, delta's Codespace was deleted, epsilon is running but herdr add
+# fails there, and eta is running with two machines, which syncs that ran at
+# once used to add.
 cat >"$work_dir/codespaces.json" <<'JSON'
 [
   {"name": "alpha-cs-x1", "repository": "360ERP/mattsleeps", "state": "Available"},
   {"name": "beta-cs-x2", "repository": "360ERP/beautyplaza", "state": "Available"},
   {"name": "gamma-cs-x3", "repository": "360ERP/stas", "state": "Shutdown"},
   {"name": "epsilon-cs-x5", "repository": "360ERP/vyta", "state": "Available"},
-  {"name": "zeta-cs-x6", "repository": "360ERP/stoov", "state": "Available"}
+  {"name": "zeta-cs-x6", "repository": "360ERP/stoov", "state": "Available"},
+  {"name": "eta-cs-x7", "repository": "360ERP/pauw", "state": "Available"}
 ]
 JSON
 cat >"$work_dir/machines.json" <<'JSON'
@@ -47,7 +49,11 @@ cat >"$work_dir/machines.json" <<'JSON'
   {"id": "ep_zeta", "label": "stoov (zeta-cs)", "target": "herdr-cs.zeta-cs-x6",
    "session": "default", "enabled": false, "selected": false},
   {"id": "ep_mine", "label": "my server", "target": "workbox",
-   "session": "default", "enabled": true, "selected": false}
+   "session": "default", "enabled": true, "selected": false},
+  {"id": "ep_eta_a", "label": "pauw (eta-cs)", "target": "herdr-cs.eta-cs-x7",
+   "session": "default", "enabled": true, "selected": false},
+  {"id": "ep_eta_b", "label": "pauw (eta-cs)", "target": "herdr-cs.eta-cs-x7",
+   "session": "default", "enabled": true, "selected": true}
 ]
 JSON
 
@@ -56,6 +62,11 @@ cat >"$fake_bin/gh" <<'FAKE_GH'
 set -euo pipefail
 printf '%s\n' "$*" >>"$FAKE_GH_LOG"
 if [[ "$1 $2" == "codespace list" ]]; then
+  if [[ -e "$FAKE_WORK/gh-offline-once" ]]; then
+    rm -f "$FAKE_WORK/gh-offline-once"
+    echo "error connecting to api.github.com" >&2
+    exit 1
+  fi
   cat "$FAKE_WORK/codespaces.json"
 elif [[ "$1 $2" == "codespace ssh" && "$*" == *--config* ]]; then
   for name in alpha-cs-x1 beta-cs-x2 epsilon-cs-x5; do
@@ -87,12 +98,21 @@ case "$1 ${2:-}" in
   "machine add")
     [[ ! -t 0 ]] || { echo "stdin must not be a terminal" >&2; exit 3; }
     [[ "$3" != *epsilon* ]] || { echo "error: herdr not installed; machine was not saved" >&2; exit 1; }
+    if [[ -n "${FAKE_SAVE_ADDS:-}" ]]; then
+      # Connecting takes a while; then the machine is saved.
+      sleep 1
+      jq --arg target "$3" '. + [{id: ("ep_" + $target), label: "added", target: $target,
+        session: "default", enabled: true, selected: false}]' \
+        "$FAKE_WORK/machines.json" >"$FAKE_WORK/machines.json.new"
+      mv "$FAKE_WORK/machines.json.new" "$FAKE_WORK/machines.json"
+    fi
     ;;
   "machine enable"|"machine disable"|"machine remove") ;;
   "--session codespaces")
     # The window stays open until the background sync has logged
     # FAKE_WAIT_COUNT calls starting with FAKE_WAIT_FOR.
     [[ -z "${FAKE_BACKDATE:-}" ]] || touch -t 202001010000 "$FAKE_BACKDATE"
+    [[ -z "${FAKE_GH_OFFLINE_ONCE:-}" ]] || touch "$FAKE_WORK/gh-offline-once"
     for _ in $(seq 1 100); do
       count=$(grep -c "^$FAKE_WAIT_FOR" "$FAKE_HERDR_LOG" || true)
       (( count >= FAKE_WAIT_COUNT )) && exit 0
@@ -130,6 +150,10 @@ grep -Fqx 'machine remove ep_delta' "$herdr_log" || fail "deleted delta was not 
 grep -Fq 'ep_mine' "$herdr_log" && fail "a machine not created by herdr-codespaces was changed"
 grep -Fq 'could not connect vyta (epsilon-cs)' <<<"$output" \
   || fail "the failed epsilon connection was not reported"
+grep -Fqx 'machine remove ep_eta_a' "$herdr_log" || fail "eta's duplicate machine was not removed"
+grep -Fq 'ep_eta_b' "$herdr_log" && fail "eta's selected machine was changed"
+grep -Fq 'machine add herdr-cs.eta' "$herdr_log" && fail "eta was added again"
+[[ ! -e "$work_dir/cache/herdr-codespaces/sync.lock" ]] || fail "the sync lock was kept"
 
 # The SSH aliases are stable per Codespace and connect through the guard that
 # refuses to start stopped Codespaces.
@@ -166,6 +190,33 @@ FAKE_BACKDATE="$work_dir/cache/herdr-codespaces/add-failed/epsilon-cs-x5" \
   FAKE_WAIT_FOR='machine add herdr-cs.epsilon-cs-x5' FAKE_WAIT_COUNT=2 \
   HERDR_CODESPACES_SYNC_SECONDS=0.1 run_sync >/dev/null 2>&1 \
   || fail "the background sync did not retry a failed Codespace after the back-off"
+
+# A sync that dies (gh offline) does not end the window's background sync.
+: >"$herdr_log"
+FAKE_GH_OFFLINE_ONCE=1 FAKE_WAIT_FOR='machine list' FAKE_WAIT_COUNT=3 \
+  HERDR_CODESPACES_SYNC_SECONDS=0.1 run_sync >/dev/null 2>&1 \
+  || fail "the background sync stopped after a failed sync"
+[[ ! -e "$work_dir/gh-offline-once" ]] || fail "the background sync did not run while gh was offline"
+
+# Two syncs at once add a newly started Codespace only once.
+cp "$work_dir/machines.json" "$work_dir/machines.orig.json"
+: >"$herdr_log"
+FAKE_SAVE_ADDS=1 run_sync sync >/dev/null 2>&1 &
+first_sync=$!
+FAKE_SAVE_ADDS=1 run_sync sync >/dev/null 2>&1 || fail "the second sync failed"
+wait "$first_sync" || fail "the first sync failed"
+[[ "$(grep -c 'machine add herdr-cs.alpha-cs-x1' "$herdr_log")" == 1 ]] \
+  || fail "two syncs at once added a Codespace twice"
+cp "$work_dir/machines.orig.json" "$work_dir/machines.json"
+
+# The lock of a sync that died does not block the next one.
+sh -c 'exit 0' &
+dead_pid=$!
+wait "$dead_pid" || true
+mkdir "$work_dir/cache/herdr-codespaces/sync.lock"
+printf '%s\n' "$dead_pid" >"$work_dir/cache/herdr-codespaces/sync.lock/pid"
+output=$(run_sync sync 2>&1) || fail "a sync after a dead one failed: $output"
+grep -Fq 'Waiting' <<<"$output" && fail "a sync waited for a dead sync's lock"
 
 # The guard only lets SSH through to an Available Codespace.
 guard() {

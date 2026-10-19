@@ -180,7 +180,9 @@ herd attach request-1929      # reattach
 `herd` runs the agent in the Codespace's Herdr server and shows it in the
 current terminal through a Herdr client with the sidebar and tab row hidden
 (`herd-client.toml`). It uses the same sandboxed `claude` alias as a normal
-terminal. The agent takes the size of the terminal or window you used last, so
+terminal, and the agent gets the Codespace's GitHub token even when the Herdr
+server was started over SSH, so it signs commits and uses `git` and `gh` without
+a login. The agent takes the size of the terminal or window you used last, so
 it also fills the `herdr-codespaces` window. Starting or attaching an agent
 switches every Herdr view of that Codespace to it. Detach with `ctrl+b q`; the
 agent keeps running when the terminal or Cursor closes.

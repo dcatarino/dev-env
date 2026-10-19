@@ -87,6 +87,11 @@ skills describe.
   Keep `codespace-bootstrap.sh` self-contained and runnable through
   `curl … | bash`: its body stays inside `main`, which runs with stdin
   detached, so installers cannot consume the rest of a piped script.
+- Keep the startup line from `codespace-bootstrap.sh` that loads `GITHUB_*` and
+  `GIT_COMMITTER_*` from `/workspaces/.codespaces/shared/.env-secrets`.
+  Codespaces gives these only to editor terminals, and a Herdr server started
+  over SSH passes their absence to every agent, which then cannot sign
+  commits, push, or use `gh`. Load nothing else from that file.
 - Keep local and remote responsibilities separate: `setup.sh` installs only the
   launcher locally; `remote-codespace-setup.sh` owns agent setup remotely.
 - `persist-agent-memory.sh` deletes the live memory directory after copying it

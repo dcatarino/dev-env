@@ -177,22 +177,34 @@ recently_failed() {
   [[ -f "$marker" ]] && [[ -n "$(find "$marker" -mmin "-$retry_minutes" 2>/dev/null)" ]]
 }
 
+# Removes the lock of a sync that ended without unlocking (it failed or was
+# killed). Several syncs can find it at once, and the first to remove it then
+# takes a new lock, so one sync at a time reclaims it, and only while it still
+# names the dead sync. Returns 1 while another sync is reclaiming it.
+reclaim_lock() {
+  local dead=$1
+  mkdir "$lock_dir.reclaim" 2>/dev/null || return 1
+  if [[ "$(cat "$lock_dir/pid" 2>/dev/null || true)" == "$dead" ]]; then
+    rm -rf "$lock_dir"
+  fi
+  rmdir "$lock_dir.reclaim"
+}
+
 # Takes the sync lock. While another sync runs, a background sync gives up
 # (returns 1) and a foreground sync waits for it.
 lock_sync() {
   local mode=$1 holder waited=0
   until mkdir "$lock_dir" 2>/dev/null; do
     holder=$(cat "$lock_dir/pid" 2>/dev/null || true)
-    if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null; then
-      # That sync ended without unlocking (it failed or was killed).
-      rm -rf "$lock_dir"
+    if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null \
+      && reclaim_lock "$holder"; then
       continue
     fi
     [[ "$mode" == foreground ]] || return 1
     if (( waited == 0 )); then
       printf 'Waiting for another herdr-codespaces sync to finish...\n'
     elif (( waited >= 300 )); then
-      die "another sync (pid ${holder:-unknown}) is still running after 5 minutes; if it is stuck, remove $lock_dir"
+      die "the sync lock (pid ${holder:-unknown}) is still held after 5 minutes; if no sync is running, remove $lock_dir and $lock_dir.reclaim"
     fi
     waited=$((waited + 1))
     sleep 1

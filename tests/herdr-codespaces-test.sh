@@ -218,6 +218,28 @@ printf '%s\n' "$dead_pid" >"$work_dir/cache/herdr-codespaces/sync.lock/pid"
 output=$(run_sync sync 2>&1) || fail "a sync after a dead one failed: $output"
 grep -Fq 'Waiting' <<<"$output" && fail "a sync waited for a dead sync's lock"
 
+# A sync that found the dead lock reclaims it only while it still names the
+# dead sync, and not while another sync reclaims it: the other sync may have
+# removed it and locked again in between. Load the functions without main.
+[[ "$(tail -n 1 "$script")" == 'main "$@"' ]] || fail "the script no longer ends with main"
+sed '$d' "$script" >"$work_dir/functions.sh"
+(
+  HOME="$fake_home" XDG_CACHE_HOME="$work_dir/cache" PATH="$fake_bin:/usr/bin:/bin"
+  # shellcheck source=/dev/null
+  source "$work_dir/functions.sh"
+  mkdir "$lock_dir"
+  printf '%s\n' "$$" >"$lock_dir/pid"
+  reclaim_lock "$dead_pid"
+  [[ -d "$lock_dir" ]] || fail "reclaiming removed the lock another sync took"
+  printf '%s\n' "$dead_pid" >"$lock_dir/pid"
+  mkdir "$lock_dir.reclaim"
+  reclaim_lock "$dead_pid" && fail "two syncs reclaimed the lock at once"
+  [[ -d "$lock_dir" ]] || fail "a lock being reclaimed was removed twice"
+  rmdir "$lock_dir.reclaim"
+  reclaim_lock "$dead_pid" || fail "a dead sync's lock could not be reclaimed"
+  [[ ! -e "$lock_dir" ]] || fail "a dead sync's lock was not removed"
+)
+
 # The guard only lets SSH through to an Available Codespace.
 guard() {
   PATH="$fake_bin:/usr/bin:/bin" FAKE_GH_LOG="$gh_log" \

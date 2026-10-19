@@ -17,6 +17,14 @@ set -euo pipefail
 
 herdr_bin=${HERDR_BIN:-herdr}
 
+source_path=${BASH_SOURCE[0]}
+while [[ -L "$source_path" ]]; do
+  source_dir=$(cd -P "$(dirname "$source_path")" && pwd)
+  source_path=$(readlink "$source_path")
+  [[ "$source_path" == /* ]] || source_path=$source_dir/$source_path
+done
+client_config=$(cd -P "$(dirname "$source_path")" && pwd)/herd-client.toml
+
 die() {
   printf 'herd: %s\n' "$*" >&2
   exit 1
@@ -67,6 +75,16 @@ ensure_server() {
   die "the herdr server did not start"
 }
 
+# Opens the focused workspace in a Herdr client in this terminal. A direct
+# `herdr terminal attach` would set the agent's terminal size for as long as it
+# stays attached, so herdr-codespaces on another machine would show the agent
+# at this terminal's size. Clients share it instead: the one used last sets the
+# size. herd-client.toml hides the sidebar and tab row, so the agent still
+# fills this terminal like a plain session.
+open_client() {
+  HERDR_CONFIG_PATH=$client_config exec "$herdr_bin"
+}
+
 live_agent_names() {
   herdr_json agent list | jq -r '.result.agents[]?.name // empty'
 }
@@ -115,12 +133,12 @@ start_agent() {
     die "an agent named '$name' is already running; use: herd attach $name"
   fi
 
-  local created pane terminal
+  local created workspace pane
   created=$(herdr_json workspace create --cwd "$PWD" --label "$name" --no-focus)
+  workspace=$(jq -r '.result.workspace.workspace_id // empty' <<<"$created" 2>/dev/null) \
+    || workspace=""
   pane=$(jq -r '.result.root_pane.pane_id // empty' <<<"$created" 2>/dev/null) || pane=""
-  terminal=$(jq -r '.result.root_pane.terminal_id // empty' <<<"$created" 2>/dev/null) \
-    || terminal=""
-  [[ -n "$pane" && -n "$terminal" ]] || die "could not create a herdr workspace: $created"
+  [[ -n "$workspace" && -n "$pane" ]] || die "could not create a herdr workspace: $created"
 
   # A new pane is ready for an agent only once its shell owns the foreground.
   # The pane's interactive shell also loads the sandboxed claude alias.
@@ -149,7 +167,11 @@ start_agent() {
     esac
   done
 
-  exec "$herdr_bin" terminal attach "$terminal"
+  # A new client opens on the server's focused workspace. Focusing moves every
+  # client of this server to it (Herdr has no per-client focus), so focus last,
+  # right before attaching.
+  "$herdr_bin" workspace focus "$workspace" >/dev/null
+  open_client
 }
 
 main() {
@@ -172,7 +194,9 @@ main() {
     attach)
       (( $# == 2 )) || die "usage: herd attach NAME"
       server_running || die "no herdr server is running"
-      exec "$herdr_bin" agent attach "$2"
+      local focused
+      focused=$(herdr_json agent focus "$2") || die "could not attach to $2: $focused"
+      open_client
       ;;
     *)
       start_agent "$@"

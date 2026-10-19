@@ -177,10 +177,13 @@ herd ls                       # list agents and their state
 herd attach request-1929      # reattach
 ```
 
-`herd` runs the agent in the Codespace's Herdr server and attaches the current
-terminal to it. It uses the same sandboxed `claude` alias as a normal terminal.
-Detach with `ctrl+b q`; the agent keeps running when the terminal or Cursor
-closes.
+`herd` runs the agent in the Codespace's Herdr server and shows it in the
+current terminal through a Herdr client with the sidebar and tab row hidden
+(`herd-client.toml`). It uses the same sandboxed `claude` alias as a normal
+terminal. The agent takes the size of the terminal or window you used last, so
+it also fills the `herdr-codespaces` window. Starting or attaching an agent
+switches every Herdr view of that Codespace to it. Detach with `ctrl+b q`; the
+agent keeps running when the terminal or Cursor closes.
 
 ### See every Codespace's agents in one window
 
@@ -259,6 +262,7 @@ tokens, and personal contact details must never be written there — see
 - `codespace-browser` — `BROWSER` wrapper for browser editor terminals that
   keeps Claude Code's sign-in on its paste-a-code flow.
 - `herd` — starts Claude Code or Codex inside the Codespace's Herdr server.
+- `herd-client.toml` — Herdr client settings for `herd`: no sidebar or tab row.
 - `herdr-codespaces` — local command that shows every running Codespace's
   Herdr agents in one window.
 - `docs/herdr-workflow.md` — daily workflow for running and watching agents

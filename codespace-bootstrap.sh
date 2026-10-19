@@ -35,6 +35,7 @@ main() {
 
   printf '[1/5] Configuring the shell environment...\n'
   browser_line='case "${BROWSER:-}" in /vscode/*) [ -x "$HOME/.local/bin/codespace-browser" ] && export DEV_ENV_VSCODE_BROWSER="$BROWSER" BROWSER="$HOME/.local/bin/codespace-browser" ;; esac'
+  github_env_line='if [ -z "${GITHUB_TOKEN:-}" ] && [ -r /workspaces/.codespaces/shared/.env-secrets ]; then while IFS= read -r line || [ -n "$line" ]; do key=${line%%=*}; case $key in GITHUB_*|GIT_COMMITTER_*) export "$key=$(printf %s "${line#*=}" | base64 -d)" ;; esac; done </workspaces/.codespaces/shared/.env-secrets; unset line key; fi'
   ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.bashrc"
   ensure_line 'export IS_SANDBOX=1' "$HOME/.bashrc"
   ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
@@ -43,6 +44,11 @@ main() {
   # VS Code's browser editor cannot reach Claude Code's localhost sign-in
   # callback; Cursor's helper lives elsewhere and keeps its working flow.
   ensure_line "$browser_line" "$HOME/.bashrc"
+  # Codespaces gives its GitHub token only to editor terminals, not to SSH
+  # sessions. A Herdr server started over SSH (usually by herdr-codespaces
+  # reconnecting) passes that to every agent, which then cannot sign commits,
+  # push, or use gh. Load the GitHub variables from Codespaces' own copy.
+  ensure_line "$github_env_line" "$HOME/.bashrc"
 
   # Keep the same behavior if a Codespace uses zsh instead of the default bash.
   ensure_line 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc"
@@ -51,6 +57,7 @@ main() {
   ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.zshrc"
   ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.zshrc"
   ensure_line "$browser_line" "$HOME/.zshrc"
+  ensure_line "$github_env_line" "$HOME/.zshrc"
 
   export PATH="$HOME/.local/bin:$PATH"
   export IS_SANDBOX=1

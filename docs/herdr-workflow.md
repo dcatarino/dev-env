@@ -165,6 +165,13 @@ herdr --machine "<label>" agent list     # one Codespace's agents, as JSON
   time with a `herdr-codespaces` older than this fix, and both added it. The
   next sync removes the extra machine. Close windows that were opened before
   you pulled the fix: they keep running the old sync.
+- **Commits are unsigned, or `git push` or `gh` asks you to log in.** The
+  Codespace's Herdr server was started over SSH (usually by this window
+  reconnecting after the Codespace restarted), and its agents started before
+  the bootstrap had installed the line that loads the GitHub token. Open the
+  Codespace with a launcher, or rerun its bootstrap, then run
+  `herdr server stop` there. The next `herd` or reconnect starts the server
+  again and resumes the agents with the token.
 - **A Codespace shows `! error` after it stopped.** It is disabled at the next
   sync; reopen it with a launcher if you need it.
 - **`herdr-codespaces` says saved machines are unsupported.** The local Herdr

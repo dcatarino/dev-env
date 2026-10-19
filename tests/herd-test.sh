@@ -26,13 +26,18 @@ cat >"$fake_bin/herdr" <<'FAKE_HERDR'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >>"$FAKE_HERDR_LOG"
-case "$1 ${2:-}" in
+case "${1:-} ${2:-}" in
   "status server") printf 'status: running\n' ;;
   "agent list")
     printf '{"result":{"agents":[{"name":"odoo-repo-18","agent":"claude","agent_status":"working","cwd":"/w","pane_id":"w1:p1"}]}}\n'
     ;;
   "workspace create")
-    printf '{"result":{"root_pane":{"pane_id":"w2:p1","terminal_id":"term_new"}}}\n'
+    printf '{"result":{"workspace":{"workspace_id":"w2"},"root_pane":{"pane_id":"w2:p1","terminal_id":"term_new"}}}\n'
+    ;;
+  "workspace focus"|"agent focus") printf '{"result":{}}\n' ;;
+  " ")
+    # The Herdr client: record the config it was given.
+    printf 'client config=%s\n' "${HERDR_CONFIG_PATH:-}" >>"$FAKE_HERDR_LOG"
     ;;
   "agent start")
     count_file="$FAKE_WORK/start-count"
@@ -44,7 +49,6 @@ case "$1 ${2:-}" in
     fi
     printf '{"result":{"type":"agent_started"}}\n'
     ;;
-  "terminal attach"|"agent attach") ;;
   *) printf 'unexpected herdr call: %s\n' "$*" >&2; exit 1 ;;
 esac
 FAKE_HERDR
@@ -53,7 +57,7 @@ chmod +x "$fake_bin/herdr"
 run_herd() {
   (cd "$work_dir/Odoo Repo.18" \
     && PATH="$fake_bin:/usr/bin:/bin" FAKE_WORK="$work_dir" \
-      FAKE_HERDR_LOG="$herdr_log" bash "$script" "$@")
+      FAKE_HERDR_LOG="$herdr_log" bash "${herd_path:-$script}" "$@")
 }
 
 # A default name comes from the folder, skips live names, and the agent
@@ -63,7 +67,12 @@ grep -Fq "workspace create --cwd $work_dir/Odoo Repo.18 --label odoo-repo-18-2 -
   "$herdr_log" || fail "workspace was not created with a free folder-based name"
 [[ "$(grep -c '^agent start odoo-repo-18-2 --kind claude --pane w2:p1 -- --model opus$' \
   "$herdr_log")" == 2 ]] || fail "agent start was not retried with the same arguments"
-grep -Fqx 'terminal attach term_new' "$herdr_log" || fail "did not attach to the new agent"
+# A Herdr client, not a direct terminal attach, which would fix the agent's
+# terminal size to this terminal for every other client. The client opens on
+# the focused workspace, so the new one is focused last.
+[[ "$(tail -n 3 "$herdr_log")" == "workspace focus w2"$'\n\n'"client config=$repo_dir/herd-client.toml" ]] \
+  || fail "did not open the new agent's workspace in a Herdr client with herd-client.toml"
+grep -Fq 'attach' "$herdr_log" && fail "attached directly to the agent's terminal"
 
 # Codex is selected explicitly and a name may be given.
 : >"$herdr_log"
@@ -82,8 +91,13 @@ if run_herd claude Bad.Name 2>/dev/null; then
 fi
 grep -Fq 'workspace create' "$herdr_log" && fail "a workspace was created for a refused name"
 
-run_herd attach odoo-repo-18
-grep -Fqx 'agent attach odoo-repo-18' "$herdr_log" || fail "attach did not target the agent"
+# remote-codespace-setup.sh installs herd as a symlink; the client config is
+# still found next to the real script.
+: >"$herdr_log"
+ln -s "$script" "$work_dir/herd-link"
+herd_path="$work_dir/herd-link" run_herd attach odoo-repo-18
+[[ "$(tail -n 3 "$herdr_log")" == "agent focus odoo-repo-18"$'\n\n'"client config=$repo_dir/herd-client.toml" ]] \
+  || fail "attach did not open the agent in a Herdr client"
 
 listing=$(run_herd ls)
 grep -Fq $'odoo-repo-18\tclaude\tworking\t/w' <<<"$listing" || fail "ls did not list agents"

@@ -57,8 +57,12 @@ herd codex                        # Codex instead
 herd claude -- --resume           # arguments after -- go to the agent
 ```
 
-The terminal attaches to the agent, so it looks and behaves exactly like a
-normal Claude session, including `--dangerously-skip-permissions`. Start as many
+The terminal opens the agent in a Herdr client with the sidebar and tab row
+hidden (`herd-client.toml`), so it looks and behaves like a normal Claude
+session, including `--dangerously-skip-permissions`. A terminal narrower than
+about 80 columns gets a two-line Herdr header above the agent. Starting or
+attaching an agent switches every open Herdr view of that Codespace, including
+the overview window, to that agent. Start as many
 agents as you want, each in its own terminal tab, in the same or different
 folders. Two agents in the same folder share the same working tree, so give
 parallel agents different worktrees or branches.
@@ -86,7 +90,9 @@ state:
 | `idle` | Waiting for input, already seen. | Nothing, or give it work. |
 
 Select an agent to see its terminal and type into it, exactly as in Cursor.
-Cursor and the window can show the same agent at the same time.
+Cursor and the window can show the same agent at the same time. The agent takes
+the size of whichever one you selected or typed in last, so it fills the window
+as soon as you use it there.
 
 While the window is open the list refreshes every two minutes: newly opened
 Codespaces appear, stopped ones are disabled, deleted ones disappear. A
@@ -140,6 +146,11 @@ herdr --machine "<label>" agent list     # one Codespace's agents, as JSON
 - **An agent is missing from the window.** Only agents started with `herd` (or
   inside `herdr`) are visible; a plain `claude` in a Cursor terminal is not.
   Restart it with `herd claude -- --resume` to continue the conversation.
+- **An agent is narrow in the window and does not fill it.** A terminal
+  attached directly to the agent decides its size: a `herd` older than this
+  fix, `herdr agent attach`, or `herdr terminal attach`. Press `ctrl+b q` in
+  that terminal (or close it) and the agent fills the window; reopen it there
+  with `herd attach <name>`.
 - **A Codespace is missing.** Check that it is `Available`
   (`gh codespace list`), that its bootstrap finished, and run
   `herdr-codespaces sync` to see the error. Background sync output is in

@@ -246,9 +246,9 @@ customer's Odoo environment.
 `remote-codespace-setup.sh` runs `persist-agent-memory.sh`, which symlinks those
 directories into `memory/` in this checkout. Memory then survives rebuilds and
 follows you to any Codespace that runs the installer. It adopts memory Claude
-already wrote, pre-seeds a link for every Git repository under `/workspaces`,
-never overwrites an already-persisted file with a Codespace-local one, and is
-safe to rerun.
+already wrote, pre-seeds a link for `/workspaces` itself (where sessions
+usually start) and every Git repository under it, never overwrites an
+already-persisted file with a Codespace-local one, and is safe to rerun.
 
 **This repository is private because of that directory.** It holds learned facts
 about customer Odoo versions, module sets, and integration quirks. Credentials,
@@ -285,10 +285,13 @@ tokens, and personal contact details must never be written there — see
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
 Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
-`odoo-staging-branch`, `odoo-pr`, `odoo-integrations`, `run-odoo-tests`,
-`test-odoo-ui`. `development-request` produces evidence-backed implementation
-plans with confirmed ownership, observable slices, and explicitly gated test
-execution.
+`odoo-staging-branch`, `odoo-pr`, `odoo-ship`, `odoo-integrations`,
+`run-odoo-tests`, `test-odoo-ui`. `development-request` produces
+evidence-backed implementation plans with confirmed ownership, observable
+slices, and explicitly gated test execution. `odoo-ship` ships a committed
+change to `18.0` and `18.0-staging` in one script run (PRs, staging
+cherry-pick with the manifest-version conflict resolved, `/run-tests`) and
+watches the CI run.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
 prompts/skills from recent agent session history; `capture-customer-knowledge` —
 scans the three most recent sessions (or the ones you name) for durable facts

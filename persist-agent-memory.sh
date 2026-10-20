@@ -20,6 +20,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEMORY_STORE="${MEMORY_STORE:-$REPO/memory}"
 PROJECTS_DIR="${PROJECTS_DIR:-$HOME/.claude/projects}"
 WORKSPACES_DIR="${WORKSPACES_DIR:-/workspaces}"
+root_encoded="${WORKSPACES_DIR//\//-}"
 
 mkdir -p "$MEMORY_STORE"
 
@@ -34,8 +35,10 @@ adopt_existing() {
     [[ -d "$live" && ! -L "$live" ]] || continue
 
     encoded="$(basename "$(dirname "$live")")"
-    # Only adopt projects that live under the workspaces root.
-    [[ "$encoded" == "${WORKSPACES_DIR//\//-}"-* ]] || continue
+    # Only adopt the workspaces root itself and projects that live under it.
+    # Sessions started from /workspaces write to the root's own directory.
+    [[ "$encoded" == "$root_encoded" || "$encoded" == "$root_encoded"-* ]] \
+      || continue
 
     stored="$MEMORY_STORE/$encoded"
     mkdir -p "$stored"
@@ -47,34 +50,41 @@ adopt_existing() {
   done
 }
 
-# Pre-seed a link for every Git repository under the workspaces root, so memory
-# is persisted from the very first session rather than only from the next
-# launcher run. Claude encodes a project path by replacing '/' with '-'.
+# Link one project's live memory directory into the store.
+link_project() {
+  local encoded="${1//\//-}" stored live
+
+  stored="$MEMORY_STORE/$encoded"
+  live="$PROJECTS_DIR/$encoded/memory"
+
+  mkdir -p "$stored" "$(dirname "$live")"
+
+  if [[ -L "$live" ]]; then
+    ln -sfn "$stored" "$live"        # refresh, in case the checkout moved
+  elif [[ ! -e "$live" ]]; then
+    ln -sfn "$stored" "$live"
+    echo "linked memory: $encoded"
+  fi
+}
+
+# Pre-seed a link for the workspaces root and every Git repository under it, so
+# memory is persisted from the very first session rather than only from the
+# next launcher run. Claude encodes a project path by replacing '/' with '-'.
 link_projects() {
-  local project encoded stored live
+  local project
 
   [[ -d "$WORKSPACES_DIR" ]] || {
     echo "$WORKSPACES_DIR is unavailable; skipping memory pre-seed"
     return 0
   }
 
+  link_project "$WORKSPACES_DIR"
+
   for project in "$WORKSPACES_DIR"/*/; do
     project="${project%/}"
     [[ -d "$project" ]] || continue
     git -C "$project" rev-parse --is-inside-work-tree >/dev/null 2>&1 || continue
-
-    encoded="${project//\//-}"
-    stored="$MEMORY_STORE/$encoded"
-    live="$PROJECTS_DIR/$encoded/memory"
-
-    mkdir -p "$stored" "$(dirname "$live")"
-
-    if [[ -L "$live" ]]; then
-      ln -sfn "$stored" "$live"        # refresh, in case the checkout moved
-    elif [[ ! -e "$live" ]]; then
-      ln -sfn "$stored" "$live"
-      echo "linked memory: $encoded"
-    fi
+    link_project "$project"
   done
 }
 

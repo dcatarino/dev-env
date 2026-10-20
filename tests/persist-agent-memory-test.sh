@@ -2,8 +2,8 @@
 # Exercises persist-agent-memory.sh against a fake HOME/workspaces tree. The
 # script deletes the live memory directory after copying it, so the cases that
 # matter are: existing memory is preserved, an already-persisted file is never
-# clobbered by a Codespace-local one, non-workspace projects are left alone,
-# and reruns are idempotent.
+# clobbered by a Codespace-local one, the workspaces root itself is persisted,
+# non-workspace projects are left alone, and reruns are idempotent.
 
 set -euo pipefail
 
@@ -47,6 +47,12 @@ fresh_project="$workspaces/Integrations-Acme"
 fresh_encoded=$(encoded_for "$fresh_project")
 mkdir -p "$fresh_project"
 git -C "$fresh_project" init -q
+
+# Memory from sessions started in the workspaces root itself, which is not a
+# Git repository — must still be adopted.
+root_encoded=$(encoded_for "$workspaces")
+mkdir -p "$projects/$root_encoded/memory"
+printf 'root session fact\n' >"$projects/$root_encoded/memory/root-fact.md"
 
 # A plain directory that is not a Git repository — must be skipped.
 mkdir -p "$workspaces/not-a-repo"
@@ -94,7 +100,15 @@ outside_live="$projects/$outside_encoded/memory"
 [[ ! -e "$store/$outside_encoded" ]] \
   || fail 'A project outside the workspaces root was copied into the store.'
 
-# 8. Rerunning changes nothing and loses nothing.
+# 8. The workspaces root's own memory was adopted into the store.
+root_live="$projects/$root_encoded/memory"
+[[ -L "$root_live" ]] || fail 'Workspaces root memory is not a symlink.'
+[[ "$(readlink "$root_live")" == "$store/$root_encoded" ]] \
+  || fail "Workspaces root symlink points at $(readlink "$root_live")"
+[[ -f "$store/$root_encoded/root-fact.md" ]] \
+  || fail 'Workspaces root memory was not persisted into the store.'
+
+# 9. Rerunning changes nothing and loses nothing.
 before=$(find "$store" | sort)
 run_script
 after=$(find "$store" | sort)
@@ -102,10 +116,12 @@ after=$(find "$store" | sort)
 [[ "$(<"$store/$adopted_encoded/MEMORY.md")" == 'persisted version' ]] \
   || fail 'Rerun clobbered the persisted MEMORY.md.'
 
-# 9. A rebuild (live state wiped, store intact) restores through the symlink.
+# 10. A rebuild (live state wiped, store intact) restores through the symlink.
 rm -rf "$projects"
 run_script
 [[ -f "$projects/$adopted_encoded/memory/customer-version.md" ]] \
   || fail 'Memory did not survive a simulated Codespace rebuild.'
+[[ -f "$projects/$root_encoded/memory/root-fact.md" ]] \
+  || fail 'Workspaces root memory did not survive a simulated rebuild.'
 
 printf 'persist-agent-memory tests passed.\n'

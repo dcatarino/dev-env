@@ -112,7 +112,7 @@ skills describe.
 ## Commits in this repo
 
 This meta-repo is not an Odoo project, so the Odoo rules from my global agent
-instructions (per-change ticket identifier, always-plan-mode, pre-commit,
+instructions (per-change ticket identifier, plan-mode gate, pre-commit,
 `/run-tests` CI comments) do **not** apply to changes made here. Those
 instructions only exist inside a Codespace, where `remote-codespace-setup.sh`
 installs `odoo-agent.md` as the global agent file — they are never in force

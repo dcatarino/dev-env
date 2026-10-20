@@ -19,7 +19,8 @@ requested scope, and do not refactor or change unrelated modules.
 - `/workspaces/360_integrations` — nexus integration platform (`nexus_*`
   modules). Read its `.agents/*.md` knowledge files before working there.
 - `/workspaces/Integrations-<Customer>` — customer projects (one module,
-  `<customer>_integrations`) built on the same nexus framework.
+  `<customer>_integrations`) built on the same nexus framework. Each pins its
+  own `360_integrations` submodule.
 
 ## Guardrails
 
@@ -55,6 +56,7 @@ the action is requested.
 | Commit | `odoo-commit` — identifier, pre-commit, message format |
 | Create a staging branch | `odoo-staging-branch` |
 | Push, open or update a PR | `odoo-pr` (staging pushes: `odoo-staging-branch`) |
+| Ship to 18.0 + 18.0-staging (PRs, staging cherry-pick, `/run-tests`, CI watch) | `odoo-ship` — one script run |
 | Run Odoo unit tests | `run-odoo-tests` — the user normally runs these |
 | End-to-end UI verification | `test-odoo-ui` |
 | Read a live 360ERP request | `development-request` |
@@ -64,10 +66,15 @@ one the user provides.
 
 ## Workflow
 
-Always start in plan mode. Inspect the relevant code, identify the affected
-modules, and summarize the plan before editing. Ask when a requirement, the
-affected integration flow, or the external system's behaviour is genuinely
-ambiguous; otherwise continue from the plan into the implementation.
+Inspect the relevant code and identify the affected modules before editing.
+Size the planning gate to the change:
+
+- A clear, scoped fix or PR request: state a one-line plan, then implement.
+- New logic, a new module, or a cross-repo/framework change: use plan mode.
+  Put open decisions in the plan as recommended defaults the user can
+  override. Ask separately only when no safe default exists, and batch those
+  questions into one `AskUserQuestion`.
+- Never ask to confirm an action the prompt already requested.
 
 ## Browser verification
 

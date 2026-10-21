@@ -15,6 +15,9 @@ ln -sfn "$REPO/open-codespace-cursor-mac" \
   "$LOCAL_BIN/open-codespace-cursor-mac"
 ln -sfn "$REPO/open-codespace-terminal" "$LOCAL_BIN/open-codespace-terminal"
 ln -sfn "$REPO/herdr-codespaces" "$LOCAL_BIN/herdr-codespaces"
+# herd starts agents in the herdr-codespaces window's session, next to the
+# Codespaces' agents.
+ln -sfn "$REPO/herd" "$LOCAL_BIN/herd"
 
 # Remove the legacy link created by older versions without touching a regular
 # file or an unrelated symlink the user may have created under the same name.
@@ -39,3 +42,4 @@ echo "installed: $LOCAL_BIN/open-codespace-cursor-ide"
 echo "installed: $LOCAL_BIN/open-codespace-cursor-mac"
 echo "installed: $LOCAL_BIN/open-codespace-terminal"
 echo "installed: $LOCAL_BIN/herdr-codespaces"
+echo "installed: $LOCAL_BIN/herd"

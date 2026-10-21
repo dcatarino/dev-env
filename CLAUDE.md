@@ -56,8 +56,12 @@ skills describe.
   VS Code's helper. `remote-codespace-setup.sh` links it into `~/.local/bin`;
   a startup line from `codespace-bootstrap.sh` selects it only when `BROWSER`
   is VS Code's `/vscode/…` helper, leaving Cursor's working flow untouched.
-- `setup.sh` — local-only installer that symlinks the launchers into
-  `~/.local/bin`. It must not install skills or agent instructions locally.
+- `setup.sh` — local-only installer that symlinks the launchers,
+  `herdr-codespaces` and `herd` into `~/.local/bin`. It must not install
+  skills or agent instructions locally.
+- `herd` — starts agents in a Herdr server: the Codespace's, or on a computer
+  the `herdr-codespaces` window's session (`codespaces`). Inside a Herdr pane it
+  switches that window to the agent instead of nesting a client.
 - `remote-codespace-setup.sh` — installs skills and shared agent instructions
   inside a Codespace, warms `pre-commit` environments for configured Git
   repositories under `/workspaces`, and persists agent memory. Both launchers

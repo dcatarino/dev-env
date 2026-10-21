@@ -11,7 +11,9 @@ or the Mac.
 ```
 
 Each Codespace runs its own Herdr server. The agents live there, so closing
-Cursor, a terminal, or the overview window never stops them.
+Cursor, a terminal, or the overview window never stops them. Agents you start
+with `herd` on the Mac itself run in the overview window's own session, so they
+appear in the same sidebar.
 
 ## One-time setup
 
@@ -69,6 +71,23 @@ parallel agents different worktrees or branches.
 
 The first time Claude opens a folder it asks whether you trust it. Herdr shows
 that as `blocked` until you answer.
+
+### 2b. Start agents on the Mac
+
+`setup.sh` also installs `herd` on the Mac. Outside a Codespace it uses the
+overview window's session (`codespaces`), so local agents sit next to the
+Codespaces' agents in one sidebar, even when the window is closed:
+
+```bash
+cd ~/360-workspace-data/environments/colmore     # e.g. a 360-work environment
+herd claude colmore-1972
+```
+
+From a plain terminal (Warp), `herd` opens the agent in a Herdr client like in
+a Codespace. From a pane inside the overview window, it switches the window to
+the new agent instead. For an environment's Odoo server, run
+`360-work odoo up` and follow it with `360-work odoo logs -f` in a split pane
+(`ctrl+b` then `v` or `-`).
 
 ### 3. Watch everything from one window
 

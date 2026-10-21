@@ -14,8 +14,8 @@ bash dev-env/setup.sh
 ```
 
 `setup.sh` is only for the local computer. It symlinks the Cursor and terminal
-Codespace helpers into `~/.local/bin`; it does not install agent skills or
-instructions locally.
+Codespace helpers, `herdr-codespaces` and `herd` into `~/.local/bin`; it does
+not install agent skills or instructions locally.
 
 ## Open a Codespace in Cursor
 
@@ -220,6 +220,11 @@ Notes:
 
 - Only agents started with `herd` (or inside `herdr`) are visible; a plain
   `claude` in a Cursor terminal is not.
+- Agents on the computer itself appear too: `setup.sh` also installs `herd`
+  there, and outside a Codespace it starts agents in the window's session
+  (`codespaces`, or `HERDR_SESSION`). Run it from any terminal, for example in
+  a local 360-work environment folder. Inside a Herdr pane, `herd` switches the
+  window to the new agent instead of opening a second Herdr in that pane.
 - A Codespace appears once its bootstrap has installed Herdr. If it was not
   ready, the open window retries it after 10 minutes; `herdr-codespaces sync`
   retries it immediately.
@@ -269,13 +274,15 @@ tokens, and personal contact details must never be written there — see
   runnable directly from a browser Codespace terminal.
 - `codespace-browser` — `BROWSER` wrapper for browser editor terminals that
   keeps Claude Code's sign-in on its paste-a-code flow.
-- `herd` — starts Claude Code or Codex inside the Codespace's Herdr server.
+- `herd` — starts Claude Code or Codex inside the Codespace's Herdr server,
+  or on a computer in the `herdr-codespaces` window's session.
 - `herd-client.toml` — Herdr client settings for `herd`: no sidebar or tab row.
 - `herdr-codespaces` — local command that shows every running Codespace's
   Herdr agents in one window.
 - `docs/herdr-workflow.md` — daily workflow for running and watching agents
   with Herdr.
-- `setup.sh` — local-only installer for the launcher commands.
+- `setup.sh` — local-only installer for the launcher commands, `herdr-codespaces`
+  and `herd`.
 - `remote-codespace-setup.sh` — remote installer for skills, shared agent
   instructions, GitHub CLI, browser automation, and memory persistence,
   invoked automatically by both launchers.

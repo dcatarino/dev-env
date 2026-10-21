@@ -26,6 +26,7 @@ cat >"$fake_bin/herdr" <<'FAKE_HERDR'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >>"$FAKE_HERDR_LOG"
+printf '%s\n' "${HERDR_SESSION:-<none>}" >>"$FAKE_WORK/sessions"
 case "${1:-} ${2:-}" in
   "status server") printf 'status: running\n' ;;
   "agent list")
@@ -54,10 +55,21 @@ esac
 FAKE_HERDR
 chmod +x "$fake_bin/herdr"
 
+# The caller's own Herdr or Codespace variables must not leak in; extra_env
+# sets them per case.
+extra_env=()
 run_herd() {
   (cd "$work_dir/Odoo Repo.18" \
-    && PATH="$fake_bin:/usr/bin:/bin" FAKE_WORK="$work_dir" \
-      FAKE_HERDR_LOG="$herdr_log" bash "${herd_path:-$script}" "$@")
+    && env -u HERDR_ENV -u HERDR_SESSION -u CODESPACES \
+      PATH="$fake_bin:/usr/bin:/bin" FAKE_WORK="$work_dir" \
+      FAKE_HERDR_LOG="$herdr_log" ${extra_env[@]+"${extra_env[@]}"} \
+      bash "${herd_path:-$script}" "$@")
+}
+
+# Prints the distinct sessions herd used since the last reset.
+sessions_used() {
+  sort -u "$work_dir/sessions"
+  : >"$work_dir/sessions"
 }
 
 # A default name comes from the folder, skips live names, and the agent
@@ -101,5 +113,32 @@ herd_path="$work_dir/herd-link" run_herd attach odoo-repo-18
 
 listing=$(run_herd ls)
 grep -Fq $'odoo-repo-18\tclaude\tworking\t/w' <<<"$listing" || fail "ls did not list agents"
+
+# Outside a Codespace, herd uses the herdr-codespaces window's session; in a
+# Codespace the server's default; a session that is already set is kept.
+[[ "$(sessions_used)" == codespaces ]] \
+  || fail "a computer's agents did not go to the herdr-codespaces session"
+extra_env=(CODESPACES=true)
+run_herd ls >/dev/null
+[[ "$(sessions_used)" == "<none>" ]] || fail "a Codespace did not use its default session"
+extra_env=(HERDR_SESSION=other)
+run_herd ls >/dev/null
+[[ "$(sessions_used)" == other ]] || fail "an explicit HERDR_SESSION was not kept"
+
+# Inside a Herdr pane, focusing switches that window to the agent; opening a
+# client there would nest Herdr in its own pane.
+: >"$herdr_log"
+rm -f "$work_dir/start-count"
+extra_env=(HERDR_ENV=1 HERDR_SESSION=codespaces)
+output=$(run_herd claude inside)
+[[ "$(tail -n 1 "$herdr_log")" == "workspace focus w2" ]] \
+  || fail "inside Herdr, the new agent's workspace was not focused last"
+grep -Fq 'client config=' "$herdr_log" && fail "inside Herdr, a nested client was opened"
+grep -Fq 'switched this Herdr window' <<<"$output" || fail "inside Herdr, herd did not say it switched"
+: >"$herdr_log"
+run_herd attach odoo-repo-18 >/dev/null
+[[ "$(cat "$herdr_log")" == "status server"$'\n'"agent focus odoo-repo-18" ]] \
+  || fail "inside Herdr, attach did not only focus the agent"
+extra_env=()
 
 printf 'herd tests passed.\n'

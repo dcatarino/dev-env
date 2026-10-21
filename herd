@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
 
-# Runs Claude Code or Codex inside this Codespace's Herdr server instead of
-# directly in the terminal. The agent then keeps running when the terminal (or
-# Cursor) closes, and a herdr client on another machine (see herdr-codespaces)
-# shows whether it is working, blocked on a question, or done.
+# Runs Claude Code or Codex inside a Herdr server instead of directly in the
+# terminal. The agent then keeps running when the terminal (or Cursor) closes,
+# and a herdr client (see herdr-codespaces) shows whether it is working,
+# blocked on a question, or done.
+#
+# In a Codespace the agent runs in the Codespace's Herdr server. On a computer
+# that runs herdr-codespaces it runs in that window's session, so local agents
+# appear next to the Codespaces' agents.
 #
 # Usage:
 #   herd [claude|codex] [NAME] [-- AGENT_ARGS...]   start an agent here, attach
 #   herd attach NAME                                 reattach to a running agent
 #   herd ls                                          list agents and their state
 #
-# Detach with ctrl+b q; the agent keeps running. remote-codespace-setup.sh links
-# this into ~/.local/bin.
+# Detach with ctrl+b q; the agent keeps running. remote-codespace-setup.sh (in
+# a Codespace) and setup.sh (on a computer) link this into ~/.local/bin.
 
 set -euo pipefail
 
 herdr_bin=${HERDR_BIN:-herdr}
+
+# Inside a Herdr pane HERDR_SESSION already names the current session.
+# herdr-codespaces opens the same session name (HERDR_SESSION, or codespaces).
+if [[ -z "${HERDR_SESSION:-}" && -z "${CODESPACES:-}" && ! -d /workspaces/.codespaces ]]; then
+  export HERDR_SESSION=codespaces
+fi
 
 source_path=${BASH_SOURCE[0]}
 while [[ -L "$source_path" ]]; do
@@ -37,8 +47,10 @@ Usage:
   herd attach NAME                                 reattach to a running agent
   herd ls                                          list agents and their state
 
-The agent runs in this Codespace's Herdr server, so it survives closing the
-terminal and is visible from herdr-codespaces on another machine.
+The agent runs in this Codespace's Herdr server, or on a computer in the
+herdr-codespaces window's session, so it survives closing the terminal and is
+visible in the herdr-codespaces window. Inside a Herdr pane, the window
+switches to the agent instead of opening a second Herdr in the pane.
 Detach with ctrl+b q. NAME defaults to the current folder name.
 USAGE
 }
@@ -52,8 +64,10 @@ error_code() {
   jq -r '.error.code // empty' <<<"$1" 2>/dev/null || true
 }
 
+# Not `grep -q`: it exits at the first line, herdr then dies of SIGPIPE writing
+# the rest of its status, and pipefail reports a running server as stopped.
 server_running() {
-  "$herdr_bin" status server 2>/dev/null | grep -q '^status: running'
+  "$herdr_bin" status server 2>/dev/null | grep '^status: running' >/dev/null
 }
 
 ensure_server() {
@@ -81,7 +95,14 @@ ensure_server() {
 # at this terminal's size. Clients share it instead: the one used last sets the
 # size. herd-client.toml hides the sidebar and tab row, so the agent still
 # fills this terminal like a plain session.
+#
+# Inside a Herdr pane, focusing the workspace already switched this window to
+# the agent; a client here would nest Herdr inside its own pane.
 open_client() {
+  if [[ "${HERDR_ENV:-}" == 1 ]]; then
+    printf 'herd: switched this Herdr window to the agent.\n'
+    exit 0
+  fi
   HERDR_CONFIG_PATH=$client_config exec "$herdr_bin"
 }
 
@@ -129,7 +150,7 @@ start_agent() {
   [[ -n "$name" ]] || name=$(default_name)
   [[ "$name" =~ ^[a-z][a-z0-9_-]{0,31}$ ]] \
     || die "invalid name '$name': use lowercase letters, digits, - or _ (max 32)"
-  if live_agent_names | grep -Fqx -- "$name"; then
+  if live_agent_names | grep -Fx -- "$name" >/dev/null; then
     die "an agent named '$name' is already running; use: herd attach $name"
   fi
 

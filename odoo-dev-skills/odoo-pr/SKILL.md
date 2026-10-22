@@ -1,7 +1,7 @@
 ---
 name: odoo-pr
 description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with a /run-tests comment, and the GitHub auth model (org token vs personal repos).
-version: 1.1.0
+version: 1.1.1
 ---
 
 # Open a pull request
@@ -23,11 +23,11 @@ reference and covers personal repos.
 
 ## Create the PR — 360ERP org repos
 
-PRs target the Odoo version branch, normally `18.0`:
+PRs target the repository's Odoo version branch (`18.0`, `20.0`, ...):
 
 ```bash
 git push -u origin <feature_branch>
-gh pr create --base 18.0 \
+gh pr create --base <version> \
   --title "[task-XXXX] module_a,module_b: concise description" \
   --body "..."
 ```

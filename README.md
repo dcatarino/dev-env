@@ -15,7 +15,9 @@ bash dev-env/setup.sh
 
 `setup.sh` is only for the local computer. It symlinks the Cursor and terminal
 Codespace helpers, `herdr-codespaces` and `herd` into `~/.local/bin`; it does
-not install agent skills or instructions locally.
+not install agent skills or instructions locally. Local Odoo environments get
+the Odoo skills and `odoo-agent.md` from this repository's `main` through
+[360-work-env](https://github.com/dcatarino/360-work-env) (`360-work skills`).
 
 ## Open a Codespace in Cursor
 
@@ -296,7 +298,7 @@ Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
 `run-odoo-tests`, `test-odoo-ui`. `development-request` produces
 evidence-backed implementation plans with confirmed ownership, observable
 slices, and explicitly gated test execution. `odoo-ship` ships a committed
-change to `18.0` and `18.0-staging` in one script run (PRs, staging
+change to `<version>` and `<version>-staging` in one script run (PRs, staging
 cherry-pick with the manifest-version conflict resolved, `/run-tests`) and
 watches the CI run.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's

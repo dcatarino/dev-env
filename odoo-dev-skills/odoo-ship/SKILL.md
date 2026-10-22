@@ -1,10 +1,10 @@
 ---
 name: odoo-ship
-description: This skill should be used when the user asks to push a committed change and open its pull requests in a 360ERP Odoo repository — especially the usual pair, e.g. "create a PR to 18.0 and to 18.0-staging", "PR to 18.0 and staging", "push to the open PR and open a new staging PR". One script run pushes the feature branch, opens or reuses its PR, picks or creates the staging branch, cherry-picks (resolving the expected manifest-version conflict), opens the staging PR and posts /run-tests; a second script watches the CI run that /run-tests starts.
-version: 1.0.0
+description: This skill should be used when the user asks to push a committed change and open its pull requests in a 360ERP Odoo repository — especially the usual pair, e.g. "create a PR to 18.0 and to 18.0-staging", "PR to 20.0 and staging", "push to the open PR and open a new staging PR". One script run pushes the feature branch, opens or reuses its PR, picks or creates the staging branch, cherry-picks (resolving the expected manifest-version conflict), opens the staging PR and posts /run-tests; a second script watches the CI run that /run-tests starts.
+version: 1.0.1
 ---
 
-# Ship to 18.0 and 18.0-staging
+# Ship to `<version>` and `<version>-staging`
 
 Use this only when the user **explicitly asks** for the PRs. It scripts the
 push, PR, staging and `/run-tests` steps of `odoo-pr` and `odoo-staging-branch`;
@@ -12,10 +12,13 @@ those skills stay the reference for each rule.
 
 ## Which PRs
 
-- `Integrations-<Customer>` repos: the user usually asks for both `18.0` and
-  `18.0-staging`. When the request names only `18.0`, add `--no-staging`. When
-  it names no base, ship to `18.0` only (`--no-staging`) and offer the staging
-  PR in your closing line.
+`<version>` is the Odoo version the feature branch starts with (`18.0`,
+`20.0`, ...); the script reads it from the branch name.
+
+- Customer repos: the user usually asks for both `<version>` and
+  `<version>-staging`. When the request names only `<version>`, add
+  `--no-staging`. When it names no base, ship to `<version>` only
+  (`--no-staging`) and offer the staging PR in your closing line.
 - `360_integrations`: `18.0` only (`--no-staging`). Customer staging gets a
   framework change through a submodule bump (see `odoo-staging-branch`).
 

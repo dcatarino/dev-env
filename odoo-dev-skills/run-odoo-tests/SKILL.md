@@ -1,17 +1,45 @@
 ---
 name: run-odoo-tests
-description: This skill should be used when running Odoo unit tests in this codespace/dev environment — e.g. the user asks to run or verify tests for an Odoo module/addon, confirm a fix or PR passes, or set up a test database. Covers the bundled runner script, the persistent test-DB workflow, targeting a specific test class or method, and the queue_job behaviour that affects test assertions.
-version: 1.1.0
+description: This skill should be used when running Odoo unit tests, in a local 360-work environment or a Codespace — e.g. to verify the modules just changed, when the user asks to run or verify tests for an Odoo module/addon, confirm a fix or PR passes, or set up a test database. Covers `360-work odoo test` locally, the bundled runner script in a Codespace, the persistent test-DB workflow, targeting a specific test class or method, and the queue_job behaviour that affects test assertions.
+version: 1.2.0
 ---
 
 # Run Odoo unit tests
 
+Tests run at module install/upgrade time via `odoo-bin` with `--test-enable`
+and `--stop-after-init`, in a reusable test database (default `odoo-test-1`).
+
+## Local 360-work environment
+
+The workspace has a `context/task.json`, and its `CLAUDE.md` describes the
+local Odoo runtime. Run the tests of the modules you changed before reporting
+the work done. From inside the repository folder:
+
+```bash
+360-work odoo test --modules MODULE[,MODULE]
+```
+
+| Option | Purpose |
+| --- | --- |
+| `--test-tags /MODULE:TestClass.test_05_x` | Run one class or method instead of the whole suite. |
+| `--fresh` | Recreate the test database — after an install-time change (manifest dependencies, XML data, security). |
+| `--database NAME` | Use a different reusable database. |
+
+It prints `PASSED` or `FAILED` with the log path and exits non-zero on
+failure. **The first run builds the Docker image and installs the dependency
+chain, which takes minutes:** launch that one as a background task and wait
+for its completion notification. Later runs are fast. When `360-work` is not on
+PATH, use the path the environment's `CLAUDE.md` gives.
+
+`--fresh` cannot drop the database while another connection holds it, such as
+the server `360-work odoo up` started. Run `360-work odoo down` first, and
+`360-work odoo up` again afterwards.
+
+## Codespace
+
 Only when the user explicitly asks — the user normally runs these manually.
 
-This environment runs Odoo from source. Tests run at module install/upgrade time
-via `odoo-bin` with `--test-enable` and `--stop-after-init`.
-
-## Run them
+### Run them
 
 From the project root (e.g. `/workspaces/<project>`), run the bundled script
 from this skill's directory:
@@ -40,7 +68,7 @@ The script always binds free HTTP and gevent ports, so a running dev server
 cannot cause the `Address already in use` failure that otherwise makes
 `odoo-bin` exit before a single test runs.
 
-## Environment facts
+### Environment facts
 
 - Python:   `/home/odoo/.pyenv/shims/python3` (override with `ODOO_PYTHON`)
 - odoo-bin: `/workspaces/odoo/odoo-bin` (override with `ODOO_BIN`)
@@ -57,10 +85,10 @@ dropdb -h 127.0.0.1 -U odoo odoo-test-1
 
 ## Reading a failure
 
-The script already tails the relevant lines and prints the full log path. Open
-that log for anything it did not surface — do not re-derive the grep, and do not
-read a bare `0 failed, 0 error(s)` as success without checking the test count
-was non-zero (the script does this).
+Both runners tail the relevant lines and print the full log path. Open that log
+for anything they did not surface — do not re-derive the grep, and do not read
+a bare `0 failed, 0 error(s)` as success without checking the test count was
+non-zero (the runners do this).
 
 ## queue_job (OCA) in tests
 

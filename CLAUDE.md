@@ -32,7 +32,10 @@ skills describe.
 - `odoo-agent.md` — shared Odoo agent instructions.
   `remote-codespace-setup.sh` installs this as the global
   `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` inside Codespaces, so edits here
-  change my agent behavior in other Codespace projects.
+  change my agent behavior in other Codespace projects. 360-work-env
+  (`dcatarino/360-work-env`) also imports it from `main`, with the selected
+  `odoo-dev-skills`, into each local Odoo environment's `CLAUDE.md` and
+  `AGENTS.md`.
 - `open-codespace-cursor` — opens a selected GitHub Codespace in Cursor with
   both the repository and `/workspaces`, then starts a detached, idempotent
   bootstrap.
@@ -58,7 +61,8 @@ skills describe.
   is VS Code's `/vscode/…` helper, leaving Cursor's working flow untouched.
 - `setup.sh` — local-only installer that symlinks the launchers,
   `herdr-codespaces` and `herd` into `~/.local/bin`. It must not install
-  skills or agent instructions locally.
+  skills or agent instructions locally; local Odoo environments get them
+  through 360-work-env.
 - `herd` — starts agents in a Herdr server: the Codespace's, or on a computer
   the `herdr-codespaces` window's session (`codespaces`). Inside a Herdr pane it
   switches that window to the agent instead of nesting a client.
@@ -112,6 +116,11 @@ skills describe.
 - Match the existing tone and structure of the other skills, and keep each
   `description` specific enough that the right skill stays discoverable.
 - Keep changes focused (KISS/YAGNI) — don't refactor unrelated skills.
+- `odoo-agent.md` and the Odoo skills serve both a Codespace and a local
+  360-work environment. Put Codespace-only content under a `## Codespace`
+  heading (with `###` subsections) and local steps under
+  `## Local 360-work environment`. 360-work-env removes every `## Codespace`
+  section, up to the next `##` heading, when it imports a file.
 
 ## Commits in this repo
 
@@ -119,7 +128,8 @@ This meta-repo is not an Odoo project, so the Odoo rules from my global agent
 instructions (per-change ticket identifier, plan-mode gate, pre-commit,
 `/run-tests` CI comments) do **not** apply to changes made here. Those
 instructions only exist inside a Codespace, where `remote-codespace-setup.sh`
-installs `odoo-agent.md` as the global agent file — they are never in force
+installs `odoo-agent.md` as the global agent file, and in local 360-work
+environments, whose own `CLAUDE.md` includes it — they are never in force
 while working on this repository. This repo has no CI pipeline; never comment
 `/run-tests` on a `dev-env` push or PR.
 

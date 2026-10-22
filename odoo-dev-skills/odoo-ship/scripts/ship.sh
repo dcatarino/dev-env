@@ -32,6 +32,12 @@ EOF
 
 die() { printf 'ship: %s\n' "$*" >&2; exit 1; }
 step() { printf '\n== %s\n' "$*"; }
+# Read stdin's lines into the array named $1: mapfile -t for macOS's bash 3.2.
+read_lines() {
+  local line
+  eval "$1=()"
+  while IFS= read -r line; do eval "$1+=(\"\$line\")"; done
+}
 
 body_file="" title="" no_staging=0 dry_run=0
 while (($#)); do
@@ -112,12 +118,12 @@ feature_pr=$(open_pr "$feature" "$version")
 feature_push=needed
 [[ $(remote_sha "$feature") != "$(git rev-parse HEAD)" ]] || feature_push="up to date"
 
-mapfile -t feature_commits < <(git rev-list --reverse --no-merges "origin/$version..$feature")
+read_lines feature_commits < <(git rev-list --reverse --no-merges "origin/$version..$feature")
 merged_prs "$version" "$feature" "$tmp_dir/merged-feature.json"
 python3 "$lib" unshipped "origin/$version" --prs "$tmp_dir/merged-feature.json" \
-  --branch "$feature" -- "${feature_commits[@]}" >"$tmp_dir/feature-new" \
+  --branch "$feature" -- ${feature_commits[@]+"${feature_commits[@]}"} >"$tmp_dir/feature-new" \
   || die "could not compare $feature with its merged PRs"
-mapfile -t feature_new <"$tmp_dir/feature-new"
+read_lines feature_new <"$tmp_dir/feature-new"
 feature_merged=$((${#feature_commits[@]} - ${#feature_new[@]}))
 if ((feature_merged)); then
   merged_url=$(python3 "$lib" merged-url "$tmp_dir/merged-feature.json" "$feature")
@@ -184,9 +190,9 @@ if ((!no_staging)); then
 
   merged_prs "$version-staging" "$base_name" "$tmp_dir/merged-staging.json"
   python3 "$lib" unshipped "$staging_ref" --prs "$tmp_dir/merged-staging.json" \
-    --branch "$base_name" --iterations -- "${feature_commits[@]}" >"$tmp_dir/to-pick" \
+    --branch "$base_name" --iterations -- ${feature_commits[@]+"${feature_commits[@]}"} >"$tmp_dir/to-pick" \
     || die "could not compare $feature with $staging_ref"
-  mapfile -t to_pick <"$tmp_dir/to-pick"
+  read_lines to_pick <"$tmp_dir/to-pick"
 fi
 
 step "Plan for [$id] on $feature"
@@ -274,7 +280,7 @@ if ((!no_staging)); then
 
     for sha in ${to_pick[@]+"${to_pick[@]}"}; do
       git -c merge.conflictStyle=merge cherry-pick "$sha" && continue
-      mapfile -t conflicted < <(git diff --name-only --diff-filter=U)
+      read_lines conflicted < <(git diff --name-only --diff-filter=U)
       ((${#conflicted[@]})) \
         || die "cherry-pick of $(git rev-parse --short "$sha") stopped without a conflict (already on $staging? then 'git cherry-pick --skip')"
       for file in "${conflicted[@]}"; do

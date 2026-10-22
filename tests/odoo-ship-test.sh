@@ -24,6 +24,9 @@ fail() {
   exit 1
 }
 
+# In-place sed that works with both GNU and BSD (macOS) sed.
+sed_i() { sed "$1" "$2" >"$2.tmp" && mv "$2.tmp" "$2"; }
+
 # Isolate from the user's Git configuration (signing, hooks, conflict style).
 export GIT_CONFIG_GLOBAL="$work/gitconfig" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.com
@@ -93,7 +96,7 @@ seed="$work/seed"
 git init -q -b 18.0 "$seed"
 git -C "$seed" remote add origin "$origin"
 set_version() {
-  sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$2\"/" "$1/custom/mod_a/__manifest__.py"
+  sed_i "s/\"version\": \"[^\"]*\"/\"version\": \"$2\"/" "$1/custom/mod_a/__manifest__.py"
 }
 mkdir -p "$seed/custom/mod_a"
 cat >"$seed/custom/mod_a/__manifest__.py" <<'EOF'
@@ -127,7 +130,7 @@ remote_file() { git --git-dir="$origin" show "$1:custom/mod_a/$2"; }
 remote_version() { remote_file "$1" __manifest__.py | sed -n 's/.*"version": "\([^"]*\)".*/\1/p'; }
 ahead_of_staging() { git --git-dir="$origin" rev-list --count "18.0-staging..$1"; }
 feature_commit() { # sed expression, description, [new version]
-  sed -i "$1" "$repo/custom/mod_a/models.py"
+  sed_i "$1" "$repo/custom/mod_a/models.py"
   [[ -z ${3:-} ]] || set_version "$repo" "$3"
   git -C "$repo" commit -q -am "[request-1] mod_a:" -m "$2"
 }
@@ -249,7 +252,7 @@ grep -q '18.0-staging-request-1 is stale' <<<"$out" || fail 'Stale branch was no
   || fail 'No staging PR for the -2 branch.'
 
 # 5. --dry-run changes nothing; a real conflict stops on the staging branch.
-sed -i 's/^line three$/line three staging/' "$seed/custom/mod_a/models.py"
+sed_i 's/^line three$/line three staging/' "$seed/custom/mod_a/models.py"
 git -C "$seed" commit -q -am "[task-0000] mod_a:" -m "Staging edits line three"
 git -C "$seed" push -q origin 18.0-staging
 calls_before=$(wc -l <"$state/calls.log")

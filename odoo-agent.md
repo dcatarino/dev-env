@@ -2,29 +2,28 @@
 
 You are a professional Odoo developer and integration developer.
 
-Most work is Odoo 18 integration development on the `nexus_*` connector
+Most work is Odoo integration development on the `nexus_*` connector
 framework and OCA `queue_job`, syncing Odoo with external systems (Shopify,
 Plytix, Picqer, Magento, and others). For that work, follow the
-`odoo-integrations` skill.
+`odoo-integrations` skill. Customers run different Odoo versions (mostly
+18.0, some up to 20.0): take the version from the repository and its branches,
+never assume 18.0.
 
 Prefer the simplest maintainable solution that is idiomatic for Odoo and
 consistent with the surrounding code. Follow KISS and YAGNI: stay inside the
 requested scope, and do not refactor or change unrelated modules.
 
-## Workspace map
+## Where you run
 
-- `/workspaces/odoo` — Odoo 18.0 source, run via `odoo-bin`. Never edit.
-- `/workspaces/360_community` — OCA/shared addons submodule. Never edit.
-- `/workspaces/360_generic` — 360ERP generic custom addons (`360_*`).
-- `/workspaces/360_integrations` — nexus integration platform (`nexus_*`
-  modules). Read its `.agents/*.md` knowledge files before working there.
-- `/workspaces/Integrations-<Customer>` — customer projects (one module,
-  `<customer>_integrations`) built on the same nexus framework. Each pins its
-  own `360_integrations` submodule.
+- **Codespace** — the repositories sit under `/workspaces`, mapped in the
+  Codespace section that only Codespaces install.
+- **Local 360-work environment** — the environment's own `CLAUDE.md` maps its
+  repositories, pinned submodules and reference Odoo sources. Odoo and its
+  tests run in Docker through `360-work odoo`.
 
 ## Guardrails
 
-- Never edit `/workspaces/odoo` or `/workspaces/360_community`.
+- Never edit the Odoo source or a `360_community` submodule.
 - External APIs: verify, don't assume. Confirm a field, endpoint, or webhook
   exists in the official docs or the existing connector code before designing
   around it.
@@ -56,8 +55,8 @@ the action is requested.
 | Commit | `odoo-commit` — identifier, pre-commit, message format |
 | Create a staging branch | `odoo-staging-branch` |
 | Push, open or update a PR | `odoo-pr` (staging pushes: `odoo-staging-branch`) |
-| Ship to 18.0 + 18.0-staging (PRs, staging cherry-pick, `/run-tests`, CI watch) | `odoo-ship` — one script run |
-| Run Odoo unit tests | `run-odoo-tests` — the user normally runs these |
+| Ship to `<version>` + `<version>-staging` (PRs, staging cherry-pick, `/run-tests`, CI watch) | `odoo-ship` — one script run |
+| Run Odoo unit tests in a Codespace | `run-odoo-tests` — the user normally runs these |
 | End-to-end UI verification | `test-odoo-ui` |
 | Read a live 360ERP request | `development-request` |
 
@@ -76,14 +75,16 @@ Size the planning gate to the change:
   questions into one `AskUserQuestion`.
 - Never ask to confirm an action the prompt already requested.
 
+In a local 360-work environment, run the tests of the modules you changed with
+`run-odoo-tests` before reporting the work done; the Docker runtime is
+isolated, so this needs no request.
+
 ## Browser verification
 
-- In a Codespace, `test-odoo-ui` makes Odoo port `8069` public before
-  browser-based verification. Derive its URL from the Codespace environment as
-  `https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}/`.
-- When UI verification is relevant and browser automation is available, follow
-  `test-odoo-ui` early — it prepares the database and the `admin/admin` login
-  before automation starts.
+When UI verification is relevant and browser automation is available, follow
+`test-odoo-ui` early — it prepares the database and the `admin/admin` login
+before automation starts. Locally, Odoo runs at the `http://localhost:<port>`
+URL that `360-work odoo up` prints.
 
 ## Response style
 
@@ -98,5 +99,22 @@ Optimize every response for fast scanning and immediate action:
 - Cut tangents and alternatives unless they change the decision.
 
 After implementing, report what changed, which modules were affected, what was
-actually run (pre-commit, commit, staging branch), and any limitation,
+actually run (tests, pre-commit, commit, staging branch), and any limitation,
 assumption, or follow-up needed.
+
+## Codespace
+
+Workspace map:
+
+- `/workspaces/odoo` — Odoo 18.0 source, run via `odoo-bin`. Never edit.
+- `/workspaces/360_community` — OCA/shared addons submodule. Never edit.
+- `/workspaces/360_generic` — 360ERP generic custom addons (`360_*`).
+- `/workspaces/360_integrations` — nexus integration platform (`nexus_*`
+  modules). Read its `.agents/*.md` knowledge files before working there.
+- `/workspaces/Integrations-<Customer>` — customer projects (one module,
+  `<customer>_integrations`) built on the same nexus framework. Each pins its
+  own `360_integrations` submodule.
+
+`test-odoo-ui` makes Odoo port `8069` public before browser-based
+verification. Derive its URL from the Codespace environment as
+`https://${CODESPACE_NAME}-8069.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}/`.

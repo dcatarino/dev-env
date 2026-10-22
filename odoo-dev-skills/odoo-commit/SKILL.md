@@ -1,7 +1,7 @@
 ---
 name: odoo-commit
 description: This skill should be used when committing changes in an Odoo project — e.g. the user explicitly asks to commit, or to "commit ticket-XXXX / task-XXXX". Covers the required ticket/task identifier, the branch check, running pre-commit validation before committing, the exact commit message format (identifier + affected modules + concise description), and the no-co-authors rule.
-version: 1.2.0
+version: 1.2.1
 ---
 
 # Commit Odoo changes
@@ -60,13 +60,14 @@ If it fails:
 3. Only commit once it passes — unless the user explicitly tells you to commit
    anyway.
 
-Do **not** run Odoo unit tests as part of committing. The user runs those
-manually (see the `run-odoo-tests` skill if asked).
+Do **not** run Odoo unit tests as part of committing. In a Codespace the user
+runs those manually; in a local 360-work environment they already ran before
+the work was reported (see the `run-odoo-tests` skill).
 
 ## Manifest version
 
 When the change bumps a module's `version`, bump it from the version on the
-freshly fetched base branch (`git fetch origin 18.0`, then read
+freshly fetched base branch (e.g. `git fetch origin 18.0`, then read
 `origin/18.0:<module>/__manifest__.py`), not from the local branch, which may be
 behind. The staging branch's version is settled when cherry-picking (see
 `odoo-staging-branch`).

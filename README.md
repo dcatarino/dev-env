@@ -15,7 +15,9 @@ bash dev-env/setup.sh
 
 `setup.sh` is only for the local computer. It symlinks the Cursor and terminal
 Codespace helpers, `herdr-codespaces` and `herd` into `~/.local/bin`; it does
-not install agent skills or instructions locally.
+not install agent skills or instructions locally. Local Odoo environments get
+the Odoo skills and `odoo-agent.md` from this repository's `main` through
+[360-work-env](https://github.com/dcatarino/360-work-env) (`360-work skills`).
 
 ## Open a Codespace in Cursor
 
@@ -144,7 +146,10 @@ in the background, so it installs Claude Code, NVM and Node.js 22, Codex, and
 the shared `dev-env` setup in the same order. Progress is shown in the terminal.
 It is safe to rerun and exits early if a launcher-started bootstrap is already
 running. Afterwards, open a new terminal (or run `exec "$SHELL"`) so the
-`claude` alias, Codex, and Node.js are loaded.
+`claude` alias, Codex, and Node.js are loaded. `cq` starts a quick Sonnet
+session for small tasks without changing the saved default model. The
+remote setup also defaults Opus to `high` effort once per Codespace; switch to
+`xhigh` with `/model` for a design-heavy session.
 
 Claude Code normally signs in through a `http://localhost:<port>/callback`
 redirect. The browser editor cannot forward that to the Codespace, so the tab
@@ -296,7 +301,7 @@ Current skills (`odoo-dev-skills/`): `development-request`, `odoo-commit`,
 `run-odoo-tests`, `test-odoo-ui`. `development-request` produces
 evidence-backed implementation plans with confirmed ownership, observable
 slices, and explicitly gated test execution. `odoo-ship` ships a committed
-change to `18.0` and `18.0-staging` in one script run (PRs, staging
+change to `<version>` and `<version>-staging` in one script run (PRs, staging
 cherry-pick with the manifest-version conflict resolved, `/run-tests`) and
 watches the CI run.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's

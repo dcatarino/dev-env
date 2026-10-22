@@ -16,7 +16,9 @@ Usage: watch_ci.sh [--since UTC-TIMESTAMP] [--workflow FILE] BRANCH...
 EOF
 }
 
-since=$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+# GNU date, then BSD date (macOS).
+since=$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+  || date -u -v-15M +%Y-%m-%dT%H:%M:%SZ)
 workflow=test.yml
 branches=()
 while (($#)); do

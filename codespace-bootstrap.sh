@@ -41,6 +41,8 @@ main() {
   ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.bashrc"
   ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.bashrc"
   ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.bashrc"
+  # A quick Sonnet session for small tasks; --model leaves the saved default alone.
+  ensure_line "alias cq='IS_SANDBOX=1 command claude --dangerously-skip-permissions --model sonnet'" "$HOME/.bashrc"
   # VS Code's browser editor cannot reach Claude Code's localhost sign-in
   # callback; Cursor's helper lives elsewhere and keeps its working flow.
   ensure_line "$browser_line" "$HOME/.bashrc"
@@ -56,6 +58,7 @@ main() {
   ensure_line 'export NVM_DIR="$HOME/.nvm"' "$HOME/.zshrc"
   ensure_line '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' "$HOME/.zshrc"
   ensure_line "alias claude='IS_SANDBOX=1 command claude --dangerously-skip-permissions'" "$HOME/.zshrc"
+  ensure_line "alias cq='IS_SANDBOX=1 command claude --dangerously-skip-permissions --model sonnet'" "$HOME/.zshrc"
   ensure_line "$browser_line" "$HOME/.zshrc"
   ensure_line "$github_env_line" "$HOME/.zshrc"
 

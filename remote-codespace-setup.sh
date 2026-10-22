@@ -115,6 +115,35 @@ install_herdr() {
 
 install_herdr || echo "warning: herdr install failed; agents still run directly with claude/codex"
 
+# --- Claude Code effort ------------------------------------------------------
+# Opus at xhigh effort used up the session limit mid-ticket. Default it to high
+# once per Codespace. xhigh stays a per-session /model choice for design work,
+# and a default saved later with /model is kept.
+CLAUDE_EFFORT_DONE="$HOME/.cache/dev-env/claude-effort-high.done"
+
+default_claude_effort() {
+  [[ -f "$CLAUDE_EFFORT_DONE" ]] && return 0
+  python3 - "$HOME/.claude/settings.json" <<'PY' || return 1
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+settings = json.loads(path.read_text()) if path.exists() else {}
+settings["effortLevel"] = "high"
+for model, options in settings.get("modelSettings", {}).items():
+    if model.startswith("claude-opus") and isinstance(options, dict) and "effortLevel" in options:
+        options["effortLevel"] = "high"
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(json.dumps(settings, indent=2) + "\n")
+PY
+  mkdir -p "$(dirname "$CLAUDE_EFFORT_DONE")"
+  touch "$CLAUDE_EFFORT_DONE"
+  echo "Claude Code: Opus defaults to high effort (use /model for xhigh)"
+}
+
+default_claude_effort || echo "warning: could not set the Claude Code effort default" >&2
+
 # --- Agent memory -----------------------------------------------------------
 # Claude Code's auto-memory is discarded by a Codespace rebuild. Persist it in
 # this repository, the same way skills and instructions are persisted.

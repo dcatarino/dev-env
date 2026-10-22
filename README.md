@@ -146,7 +146,10 @@ in the background, so it installs Claude Code, NVM and Node.js 22, Codex, and
 the shared `dev-env` setup in the same order. Progress is shown in the terminal.
 It is safe to rerun and exits early if a launcher-started bootstrap is already
 running. Afterwards, open a new terminal (or run `exec "$SHELL"`) so the
-`claude` alias, Codex, and Node.js are loaded.
+`claude` alias, Codex, and Node.js are loaded. `cq` starts a quick Sonnet
+session for small tasks without changing the saved default model. The
+remote setup also defaults Opus to `high` effort once per Codespace; switch to
+`xhigh` with `/model` for a design-heavy session.
 
 Claude Code normally signs in through a `http://localhost:<port>/callback`
 redirect. The browser editor cannot forward that to the Codespace, so the tab

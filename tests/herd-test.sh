@@ -60,7 +60,7 @@ chmod +x "$fake_bin/herdr"
 extra_env=()
 run_herd() {
   (cd "$work_dir/Odoo Repo.18" \
-    && env -u HERDR_ENV -u HERDR_SESSION -u CODESPACES \
+    && env -u HERDR_ENV -u HERDR_SESSION -u CODESPACES -u TERM_PROGRAM \
       PATH="$fake_bin:/usr/bin:/bin" FAKE_WORK="$work_dir" \
       FAKE_HERDR_LOG="$herdr_log" ${extra_env[@]+"${extra_env[@]}"} \
       bash "${herd_path:-$script}" "$@")
@@ -129,7 +129,7 @@ run_herd ls >/dev/null
 # client there would nest Herdr in its own pane.
 : >"$herdr_log"
 rm -f "$work_dir/start-count"
-extra_env=(HERDR_ENV=1 HERDR_SESSION=codespaces)
+extra_env=(HERDR_ENV=1 HERDR_SESSION=codespaces TERM_PROGRAM=herdr)
 output=$(run_herd claude inside)
 [[ "$(tail -n 1 "$herdr_log")" == "workspace focus w2" ]] \
   || fail "inside Herdr, the new agent's workspace was not focused last"
@@ -139,6 +139,17 @@ grep -Fq 'switched this Herdr window' <<<"$output" || fail "inside Herdr, herd d
 run_herd attach odoo-repo-18 >/dev/null
 [[ "$(cat "$herdr_log")" == "status server"$'\n'"agent focus odoo-repo-18" ]] \
   || fail "inside Herdr, attach did not only focus the agent"
+
+# A Cursor window opened from a Herdr pane inherits the pane's variables, but
+# its terminal is not a pane: herd opens a client there, in the same session.
+: >"$herdr_log"
+rm -f "$work_dir/start-count"
+extra_env=(HERDR_ENV=1 HERDR_PANE_ID=w1:p1 HERDR_SESSION=codespaces TERM_PROGRAM=vscode)
+output=$(run_herd claude cursor)
+[[ "$(tail -n 3 "$herdr_log")" == "workspace focus w2"$'\n\n'"client config=$repo_dir/herd-client.toml" ]] \
+  || fail "with inherited Herdr variables, herd did not open a Herdr client"
+grep -Fq 'switched this Herdr window' <<<"$output" && fail "a Cursor terminal passed for a Herdr pane"
+[[ "$(sessions_used)" == codespaces ]] || fail "the inherited Herdr session was not kept"
 extra_env=()
 
 printf 'herd tests passed.\n'

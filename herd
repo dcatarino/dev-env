@@ -21,6 +21,14 @@ set -euo pipefail
 
 herdr_bin=${HERDR_BIN:-herdr}
 
+# A Herdr pane sets TERM_PROGRAM=herdr; other terminals overwrite it (Cursor's
+# sets vscode). A pane's variables without it were inherited, for example by a
+# Cursor window opened from a Herdr pane, and would make this terminal pass for
+# a pane. Its HERDR_SESSION still names the window it came from, so it stays.
+if [[ "${TERM_PROGRAM:-}" != herdr ]]; then
+  unset HERDR_ENV HERDR_PANE_ID HERDR_TAB_ID HERDR_WORKSPACE_ID
+fi
+
 # Inside a Herdr pane HERDR_SESSION already names the current session.
 # herdr-codespaces opens the same session name (HERDR_SESSION, or codespaces).
 if [[ -z "${HERDR_SESSION:-}" && -z "${CODESPACES:-}" && ! -d /workspaces/.codespaces ]]; then

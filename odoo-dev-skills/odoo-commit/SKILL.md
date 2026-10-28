@@ -1,7 +1,7 @@
 ---
 name: odoo-commit
 description: This skill should be used when committing changes in an Odoo project — e.g. the user explicitly asks to commit, or to "commit ticket-XXXX / task-XXXX". Covers the required ticket/task identifier, the branch check, running pre-commit validation before committing, the exact commit message format (identifier + affected modules + concise description), and the no-co-authors rule.
-version: 1.2.1
+version: 1.2.2
 ---
 
 # Commit Odoo changes
@@ -36,14 +36,23 @@ branch earlier in the session, or several candidate branches exist).
 
 ## Step 1 — Validate with pre-commit (required)
 
-Before creating the commit, run:
+Before creating the commit, stage exactly the files the commit will contain,
+then run pre-commit:
 
 ```bash
+git add <changed and new files>
 pre-commit run --all-files
 ```
 
 Notes:
 
+- **Stage first.** `--all-files` checks only the files Git tracks
+  (`git ls-files`). A new file that is not added yet is skipped, and the run
+  passes without checking it.
+- **Read pre-commit's own exit code.** Do not pipe its output into `grep`,
+  `tail` or similar and then judge the result: a pipeline reports another
+  command's status, and filtering can hide a `Failed` line. Redirect the output
+  to a file, check `$?`, then read the file.
 - Run it **once, in the foreground, after the last edit**.
   `remote-codespace-setup.sh` pre-warms the hook environments, so it normally
   finishes in under a minute; give the call a long timeout (10 minutes) in
@@ -55,8 +64,9 @@ Notes:
 
 If it fails:
 
-1. Fix the reported issues.
-2. Rerun `pre-commit run --all-files`.
+1. Fix the reported issues. A formatter that rewrote files fails the run too:
+   the fix is already in the working tree, so stage it.
+2. `git add` the fixed files, then rerun `pre-commit run --all-files`.
 3. Only commit once it passes — unless the user explicitly tells you to commit
    anyway.
 

@@ -55,7 +55,7 @@ the action is requested.
 | Commit | `odoo-commit` — identifier, pre-commit, message format |
 | Create a staging branch | `odoo-staging-branch` |
 | Push, open or update a PR | `odoo-pr` (staging pushes: `odoo-staging-branch`) |
-| Ship to `<version>` + `<version>-staging` (PRs, staging cherry-pick, `/run-tests`, CI watch) | `odoo-ship` — one script run |
+| Ship to `<version>` + `<version>-staging` (PRs, staging cherry-pick, `/run-tests`, background CI watch, squash-merge when asked, consultant handoff) | `odoo-ship` — one script run |
 | Run Odoo unit tests in a Codespace | `run-odoo-tests` — the user normally runs these |
 | End-to-end UI verification | `test-odoo-ui` |
 | Read a live 360ERP request | `development-request` |

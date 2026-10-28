@@ -4,15 +4,23 @@
 # (workflow_dispatch), so that run never shows up in `gh pr checks`; this
 # follows it with `gh run` instead. Exits non-zero when any run failed or
 # none appeared. Run it in the background; it can take as long as CI does.
+#
+# With --merge, once every run passed it also waits for each PR's own checks
+# (pre-commit, commit message, version bump) and squash-merges the PRs in the
+# order given. Nothing is merged unless everything passed. GitHub's auto-merge
+# cannot do this: the 360ERP branches are unprotected and the /run-tests run is
+# not a PR check.
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: watch_ci.sh [--since UTC-TIMESTAMP] [--workflow FILE] BRANCH...
+Usage: watch_ci.sh [--since UTC-TIMESTAMP] [--workflow FILE] [--merge] BRANCH...
 
   --since     Only runs created at or after this time, e.g. 2026-10-19T12:00:00Z
               (default: 15 minutes ago). ship.sh prints the right value.
   --workflow  Workflow file /run-tests dispatches (default: test.yml)
+  --merge     When every run and every PR check passed, squash-merge each
+              branch's open PR. Only when the user asked for the merge.
 EOF
 }
 
@@ -20,11 +28,13 @@ EOF
 since=$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
   || date -u -v-15M +%Y-%m-%dT%H:%M:%SZ)
 workflow=test.yml
+merge=0
 branches=()
 while (($#)); do
   case $1 in
     --since) since=${2:?--since needs a timestamp}; shift 2 ;;
     --workflow) workflow=${2:?--workflow needs a file}; shift 2 ;;
+    --merge) merge=1; shift ;;
     -h | --help) usage; exit 0 ;;
     -*) usage >&2; exit 64 ;;
     *) branches+=("$1"); shift ;;
@@ -58,4 +68,38 @@ for branch in "${branches[@]}"; do
     status=1
   fi
 done
+
+if ((merge)); then
+  if ((status)); then
+    printf 'NOT MERGED: a test run failed or never started\n'
+    exit "$status"
+  fi
+  # Resolve every PR and wait for all of their checks before merging any, so
+  # a failure on the staging PR never leaves the feature PR merged alone.
+  prs=()
+  for branch in "${branches[@]}"; do
+    pr=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+    if [[ -z $pr ]]; then
+      printf 'NOT MERGED: %s has no open PR\n' "$branch"
+      exit 1
+    fi
+    checks=$(gh pr checks "$pr" --watch --interval 30 2>&1) || {
+      if grep -q 'no checks reported' <<<"$checks"; then
+        printf 'CHECKS %s: none reported\n' "$pr"
+      else
+        printf 'NOT MERGED: checks failed on %s\n%s\n' "$pr" "$(tail -n 20 <<<"$checks")"
+        exit 1
+      fi
+    }
+    prs+=("$pr")
+  done
+  for pr in "${prs[@]}"; do
+    if gh pr merge "$pr" --squash; then
+      printf 'MERGED  %s\n' "$pr"
+    else
+      printf 'MERGE FAILED  %s\n' "$pr"
+      status=1
+    fi
+  done
+fi
 exit "$status"

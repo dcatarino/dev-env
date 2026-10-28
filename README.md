@@ -303,7 +303,8 @@ evidence-backed implementation plans with confirmed ownership, observable
 slices, and explicitly gated test execution. `odoo-ship` ships a committed
 change to `<version>` and `<version>-staging` in one script run (PRs, staging
 cherry-pick with the manifest-version conflict resolved, `/run-tests`) and
-watches the CI run.
+watches the CI run in the background; with `--merge` it squash-merges the PRs
+once everything passed, and it ends with a consultant handoff.
 Meta skills (`meta-skills/`): `self-improvement-dev-env` — improves this repo's
 prompts/skills from recent agent session history; `capture-customer-knowledge` —
 scans the three most recent sessions (or the ones you name) for durable facts

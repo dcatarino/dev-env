@@ -1,7 +1,7 @@
 ---
 name: development-request
 description: This skill should be used when the user invokes /development-request, explicitly asks to retrieve a live 360ERP Odoo development request, helpdesk ticket, or project task, or asks to analyse, plan, implement, test, or review one from supplied context. It gates the connected 360 ERP Odoo MCP behind explicit live-data authorization.
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Analyse and implement a development request
@@ -157,9 +157,34 @@ For code-level planning, implementation, or verification:
 8. Follow repository validation rules; tests stay gated as usual.
 9. Review the final diff for unrelated changes, secrets, PII, security impact,
    version compatibility, and upgrade consequences.
+10. For a **new module**, complete the checklist below before reporting the
+    work done.
 
 If source access, dependencies, or a runnable environment are missing, state the
 exact blocker and use the strongest available static verification.
+
+## New-module checklist
+
+Match what the sibling modules in the same repository already have; copy their
+layout rather than inventing one. Before the first commit, a new module has:
+
+- `__manifest__.py` with the repository's version scheme (`<odoo>.1.0.0`),
+  author, license, website and `category` as in its siblings, every data file
+  listed, and only the dependencies it really uses;
+- `static/description/icon.png` (copy the one the sibling modules use) and any
+  other `static/description` files they carry;
+- a short `README.rst`: what it does, how to configure it, and how to use it;
+  a few lines each, not a manual;
+- `security/ir.model.access.csv` for every new model, and groups or record
+  rules when access differs per user;
+- translations (`i18n/<lang>.po`) when the siblings ship them for the
+  customer's language;
+- tests for the new behaviour, and a migration script when an upgrade changes
+  stored data.
+
+Report the module's technical names (module, fields, groups, menus, scheduled
+actions) with the result; `odoo-ship` reuses them in the PR description and the
+handoff.
 
 ## Report
 

@@ -8,7 +8,8 @@
 # stale staging branch gets the next -N and skips commits a squash-merged
 # staging PR already brought, a real conflict stops the run, --dry-run touches
 # nothing, an already-merged feature branch is refused, and --no-staging opens
-# only the feature PR.
+# only the feature PR. watch_ci.sh --merge squash-merges only when every test
+# run and every PR check passed.
 
 set -euo pipefail
 
@@ -60,6 +61,8 @@ case $cmd in
   "pr list")
     if [[ $pr_state == merged ]]; then
       cat "$state/merged-$base.json" 2>/dev/null || echo '[]'
+    elif [[ -z $base ]]; then
+      cat "$state"/prs/*.."$head" 2>/dev/null || true
     elif [[ -f "$state/prs/$base..$head" ]]; then
       cat "$state/prs/$base..$head"
     fi
@@ -74,6 +77,8 @@ case $cmd in
     printf 'Creating pull request for %s into %s\n\n%s\n' "$head" "$base" "$url"
     ;;
   "pr comment") printf '%s %s\n' "${args[0]}" "${args[2]}" >>"$state/comments.log" ;;
+  "pr checks") echo "checks for ${args[0]}"; exit "$(cat "$state/checks-exit" 2>/dev/null || echo 0)" ;;
+  "pr merge") printf '%s %s\n' "${args[0]}" "${args[1]}" >>"$state/merges.log" ;;
   "run list") printf '%s\n' "$(<"$state/run-id")" ;;
   "run view")
     if [[ " ${args[*]} " == *" --log-failed "* ]]; then echo "failed step log"; else echo "https://example.test/run"; fi
@@ -313,5 +318,33 @@ printf '1\n' >"$state/run-exit"
 if out=$(watch 18.0-request-1); then fail 'watch_ci.sh succeeded on a failing run.'; fi
 grep -q '^FAIL  18.0-request-1' <<<"$out" || fail "No FAIL line: $out"
 grep -q 'failed step log' <<<"$out" || fail 'The failed log was not shown.'
+
+# 9. watch_ci.sh --merge squash-merges every PR only when everything passed.
+merges() { wc -l <"$state/merges.log" | tr -d ' '; }
+: >"$state/merges.log"
+if out=$(watch --merge 18.0-task-7); then fail 'watch_ci.sh --merge succeeded on a failing run.'; fi
+grep -q '^NOT MERGED' <<<"$out" || fail "No NOT MERGED line: $out"
+[[ $(merges) == 0 ]] || fail 'Merged after a failing test run.'
+printf '0\n' >"$state/run-exit"
+printf '1\n' >"$state/checks-exit"
+if out=$(watch --merge 18.0-task-7); then fail 'watch_ci.sh --merge succeeded on failing PR checks.'; fi
+grep -q '^NOT MERGED: checks failed' <<<"$out" || fail "No failed-checks line: $out"
+[[ $(merges) == 0 ]] || fail 'Merged after failing PR checks.'
+printf '0\n' >"$state/checks-exit"
+if out=$(watch --merge 18.0-no-pr); then fail 'watch_ci.sh --merge succeeded without a PR.'; fi
+grep -q '^NOT MERGED: 18.0-no-pr has no open PR' <<<"$out" || fail "No missing-PR line: $out"
+out=$(watch --merge 18.0-task-7) || fail "watch_ci.sh --merge failed on a passing run: $out"
+grep -qx 'MERGED  https://github.com/360ERP/Test/pull/[0-9]*' <<<"$out" || fail "No MERGED line: $out"
+grep -qx 'https://github.com/360ERP/Test/pull/[0-9]* --squash' "$state/merges.log" \
+  || fail "Not a squash merge: $(cat "$state/merges.log")"
+
+# 10. ship.sh --merge hands --merge to the printed watcher.
+git -C "$repo" checkout -q -b 18.0-task-8 origin/18.0
+printf 'line eight\n' >>"$repo/custom/mod_a/models.py"
+git -C "$repo" commit -q -am "[task-8] mod_a:" -m "Merge me"
+out=$(ship --no-staging --merge 2>&1) || fail "ship --merge failed: $out"
+grep -q 'watch_ci.sh --since [^ ]* --merge 18.0-task-8$' <<<"$out" \
+  || fail "The watcher line lacks --merge: $out"
+[[ $(merges) == 1 ]] || fail 'ship.sh merged by itself.'
 
 printf 'odoo-ship tests passed.\n'

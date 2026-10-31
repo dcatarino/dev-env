@@ -59,6 +59,7 @@ the action is requested.
 | Run Odoo unit tests in a Codespace | `run-odoo-tests` — the user normally runs these |
 | End-to-end UI verification | `test-odoo-ui` |
 | Read a live 360ERP request | `development-request` |
+| Run a whole development request: `/dr <id> [plan\|ship] [merge]` | `dr` — read, task worktree, implement, test, ship, handoff |
 
 Never guess a `task-XXXX` / `ticket-XXXX` / `request-XXXX` identifier; use the
 one the user provides.

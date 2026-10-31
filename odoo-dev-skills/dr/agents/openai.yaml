@@ -1,0 +1,7 @@
+interface:
+  display_name: "Development request loop"
+  short_description: "Read, implement, test and ship one 360ERP development request"
+  default_prompt: "Use $dr for development request <id> (add ship to open the PRs, merge to squash-merge them after CI)."
+
+policy:
+  allow_implicit_invocation: false

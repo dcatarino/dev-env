@@ -1,7 +1,7 @@
 ---
 name: odoo-ship
 description: This skill should be used when the user asks to push a committed change and open its pull requests in a 360ERP Odoo repository — especially the usual pair, e.g. "create a PR to 18.0 and to 18.0-staging", "PR to 20.0 and staging", "push to the open PR and open a new staging PR", optionally with "squash merge when CI passes". One script run pushes the feature branch, opens or reuses its PR, picks or creates the staging branch, cherry-picks (resolving the expected manifest-version conflict), opens the staging PR and posts /run-tests; a second script watches the CI run that /run-tests starts in the background and, when asked, squash-merges once everything passed. Ends with a handoff for the consultant.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Ship to `<version>` and `<version>-staging`
@@ -71,6 +71,12 @@ those skills stay the reference for each rule.
    A merge to `<version>-staging` deploys staging; tell the user it is merged
    so they can watch the Odoo.sh build.
 
+   In a 360-work workspace, run `360-work lane set watching --summary "CI on
+   <PRs>"` right after starting the watcher, and `lane set ready` (or
+   `merged`, or `failed` with the reason) when it reports. While a lane is
+   `watching`, its herdr pane stays "working" although this turn has ended,
+   and the final state notifies the user.
+
 ## When it stops
 
 - **A real conflict** — it stops on the staging branch mid-cherry-pick and
@@ -97,8 +103,8 @@ in follow-up turns. Skip a part that does not apply (e.g. no configuration).
 1. **Message for the consultant** — ready to paste, in the user's voice:
    casual and short (3–6 sentences), plain words, no headings, no bullet
    walls, no "I've implemented". What changed for the customer, what they
-   must configure, and what to test. Match the language of the ticket's
-   chatter (English or Dutch); never mention AI.
+   must configure, and what to test. Always in English, even when the
+   ticket's chatter is Dutch; never mention AI.
 2. **Configuration** — numbered UI steps (menu path, setting, group to
    assign) needed before the change is visible.
 3. **Test steps** — 3–6 numbered steps from the simplest scenario to the edge

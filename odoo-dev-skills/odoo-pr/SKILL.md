@@ -39,14 +39,13 @@ gh pr create --base <version> \
   `gh pr view <pr_number> --json body --jq .body`; a scratchpad copy may be
   gone.
 
-Immediately after creating the PR, post one fresh `/run-tests` comment and one
-fresh `/check-security` comment. The
+Immediately after creating the PR, post one fresh `/run-tests /check-security`
+comment. The
 initial push may have had no PR yet, so do not comment before creation and then
 again after it; comment once after the PR exists:
 
 ```bash
-gh pr comment <pr_number> --body "/run-tests"
-gh pr comment <pr_number> --body "/check-security"
+gh pr comment <pr_number> --body "/run-tests /check-security"
 ```
 
 `/run-tests` dispatches the `test.yml` workflow on the PR's head branch, so the
@@ -57,21 +56,19 @@ run never shows up in `gh pr checks`. Watch it as a background task with
 
 After every explicitly authorized `git push` that succeeds **and updates the
 remote branch**, locate an open PR for the current branch. If one exists, post
-exactly one fresh `/run-tests` comment and one fresh `/check-security` comment
-for that push action:
+exactly one fresh `/run-tests /check-security` comment for that push action:
 
 ```bash
 pr_number="$(gh pr list --head "$(git branch --show-current)" --state open --json number --jq '.[0].number')"
 if [ -n "$pr_number" ]; then
-  gh pr comment "$pr_number" --body "/run-tests"
-  gh pr comment "$pr_number" --body "/check-security"
+  gh pr comment "$pr_number" --body "/run-tests /check-security"
 fi
 ```
 
 - Do nothing when the branch has no open PR.
 - If the push is followed by PR creation, post the single comment immediately
   after creating the PR instead of commenting twice for the same push action.
-- A `/run-tests` or `/check-security` comment for an earlier commit never
+- A `/run-tests /check-security` comment for an earlier commit never
   satisfies this rule for a later remote-updating push.
 
 ## Create the PR — personal repos (e.g. `dcatarino/*`)

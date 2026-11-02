@@ -6,7 +6,7 @@
 #      (squash-merged ones are recognised through their PRs), resolving the
 #      expected manifest-version conflict;
 #   3. push it and open (or reuse) its PR to <version>-staging;
-#   4. post one /run-tests and one /check-security comment on each PR that was
+#   4. post one "/run-tests /check-security" comment on each PR that was
 #      created or whose branch the push updated.
 # Safe to rerun: commits already on the staging branch are skipped and an
 # unchanged branch gets no new /run-tests or /check-security comment. See ../SKILL.md.
@@ -238,8 +238,7 @@ ensure_pr() {
     created=1
   fi
   if ((created)) || [[ $pushed == updated ]]; then
-    gh pr comment "$pr_url" --body "/run-tests"
-    gh pr comment "$pr_url" --body "/check-security"
+    gh pr comment "$pr_url" --body "/run-tests /check-security"
     pr_note="/run-tests and /check-security posted"
     watch+=("$1")
   else

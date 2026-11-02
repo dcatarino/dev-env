@@ -121,25 +121,23 @@ git push -u origin <staging_branch>
 
 After an authorized push that succeeds and updates the remote staging branch,
 in a `360ERP/*` repository, locate an open PR for that branch and post exactly
-one fresh `/run-tests` comment and one fresh `/check-security` comment for the
-push action:
+one fresh `/run-tests /check-security` comment for the push action:
 
 ```bash
 pr_number="$(gh pr list --head "$(git branch --show-current)" --state open --json number --jq '.[0].number')"
 if [ -n "$pr_number" ]; then
-  gh pr comment "$pr_number" --body "/run-tests"
-  gh pr comment "$pr_number" --body "/check-security"
+  gh pr comment "$pr_number" --body "/run-tests /check-security"
 fi
 ```
 
-Do nothing when there is no open PR. A `/run-tests` or `/check-security`
+Do nothing when there is no open PR. A `/run-tests /check-security`
 comment for an earlier commit does not count after a later remote-updating push; personal repositories
 never receive this comment.
 
 Otherwise leave pushing to the user.
 
 When the user asked for the staging PR, open it after the push, then post one
-`/run-tests` and one `/check-security` on it:
+`/run-tests /check-security` comment on it:
 
 ```bash
 gh pr create --base <odoo_version>-staging --head <staging_branch> \

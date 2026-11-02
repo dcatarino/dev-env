@@ -51,7 +51,7 @@ those skills stay the reference for each rule.
      staging's version and bumping it at the level the feature commit bumped;
    - opens or reuses the staging PR, titled `<feature PR title> (staging)`,
      with a body that starts "Staging counterpart of #N";
-   - posts one `/run-tests` and one `/check-security` on each PR that was
+   - posts one `/run-tests /check-security` comment on each PR that was
      created or whose branch the push updated, then switches back to the feature branch.
 
    Rerunning it is safe.

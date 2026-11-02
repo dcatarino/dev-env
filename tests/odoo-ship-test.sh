@@ -153,8 +153,8 @@ out=$(ship --body-file "$work/body.md" 2>&1) || fail "First ship failed: $out"
 [[ $(<"$state/pr-1.title") == '[request-1] mod_a: Add feature one' ]] \
   || fail "Feature PR title: $(<"$state/pr-1.title")"
 [[ -f "$state/prs/18.0..18.0-request-1" ]] || fail 'Feature PR does not target 18.0.'
-grep -qx 'https://github.com/360ERP/Test/pull/1 /run-tests' "$state/comments.log" \
-  || fail 'No /run-tests on the feature PR.'
+grep -qx 'https://github.com/360ERP/Test/pull/1 /run-tests /check-security' "$state/comments.log" \
+  || fail 'No /run-tests /check-security on the feature PR.'
 [[ $(remote_version 18.0-staging-request-1) == 18.0.1.4.0 ]] \
   || fail "Staging version is $(remote_version 18.0-staging-request-1), expected 18.0.1.4.0"
 remote_file 18.0-staging-request-1 models.py | grep -qx 'line one feature' \
@@ -166,8 +166,8 @@ remote_file 18.0-staging-request-1 models.py | grep -qx 'line one feature' \
 [[ $(head -n 1 "$state/pr-2.body") == 'Staging counterpart of #1, cherry-picked onto `18.0-staging`.' ]] \
   || fail "Staging PR body starts with: $(head -n 1 "$state/pr-2.body")"
 grep -q 'Feature one.' "$state/pr-2.body" || fail 'Staging PR body lost the description.'
-grep -qx 'https://github.com/360ERP/Test/pull/2 /run-tests' "$state/comments.log" \
-  || fail 'No /run-tests on the staging PR.'
+grep -qx 'https://github.com/360ERP/Test/pull/2 /run-tests /check-security' "$state/comments.log" \
+  || fail 'No /run-tests /check-security on the staging PR.'
 [[ $(git -C "$repo" branch --show-current) == 18.0-request-1 ]] \
   || fail 'ship.sh did not return to the feature branch.'
 grep -q 'watch_ci.sh --since .* 18.0-request-1 18.0-staging-request-1' <<<"$out" \
@@ -215,7 +215,7 @@ out=$(ship 2>&1) || fail "Ship after a push from elsewhere failed: $out"
   == $(git --git-dir="$origin" rev-parse 18.0-staging-request-1) ]] \
   || fail 'The local staging branch did not catch up with origin.'
 [[ $(comments) == $((comments_before + 1)) ]] \
-  || fail 'Expected /run-tests on the feature PR only; staging was unchanged.'
+  || fail 'Expected /run-tests /check-security on the feature PR only; staging was unchanged.'
 
 # 3d. A local staging branch that has diverged from origin is refused.
 git -C "$repo" checkout -q 18.0-staging-request-1

@@ -302,7 +302,7 @@ Current skills (`odoo-dev-skills/`): `dr`, `development-request`, `odoo-commit`,
 evidence-backed implementation plans with confirmed ownership, observable
 slices, and explicitly gated test execution. `odoo-ship` ships a committed
 change to `<version>` and `<version>-staging` in one script run (PRs, staging
-cherry-pick with the manifest-version conflict resolved, `/run-tests`) and
+cherry-pick with the manifest-version conflict resolved, `/run-tests`, `/check-security`) and
 watches the CI run in the background; with `--merge` it squash-merges the PRs
 once everything passed, and it ends with a consultant handoff. `dr`
 (`/dr <id> [plan|ship] [merge]`) runs the whole development-request loop on top

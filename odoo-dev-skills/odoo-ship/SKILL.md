@@ -1,13 +1,13 @@
 ---
 name: odoo-ship
-description: This skill should be used when the user asks to push a committed change and open its pull requests in a 360ERP Odoo repository — especially the usual pair, e.g. "create a PR to 18.0 and to 18.0-staging", "PR to 20.0 and staging", "push to the open PR and open a new staging PR", optionally with "squash merge when CI passes". One script run pushes the feature branch, opens or reuses its PR, picks or creates the staging branch, cherry-picks (resolving the expected manifest-version conflict), opens the staging PR and posts /run-tests; a second script watches the CI run that /run-tests starts in the background and, when asked, squash-merges once everything passed. Ends with a handoff for the consultant.
-version: 1.2.0
+description: This skill should be used when the user asks to push a committed change and open its pull requests in a 360ERP Odoo repository — especially the usual pair, e.g. "create a PR to 18.0 and to 18.0-staging", "PR to 20.0 and staging", "push to the open PR and open a new staging PR", optionally with "squash merge when CI passes". One script run pushes the feature branch, opens or reuses its PR, picks or creates the staging branch, cherry-picks (resolving the expected manifest-version conflict), opens the staging PR and posts /run-tests and /check-security; a second script watches the CI run that /run-tests starts in the background and, when asked, squash-merges once everything passed. Ends with a handoff for the consultant.
+version: 1.2.1
 ---
 
 # Ship to `<version>` and `<version>-staging`
 
 Use this only when the user **explicitly asks** for the PRs. It scripts the
-push, PR, staging and `/run-tests` steps of `odoo-pr` and `odoo-staging-branch`;
+push, PR, staging, `/run-tests` and `/check-security` steps of `odoo-pr` and `odoo-staging-branch`;
 those skills stay the reference for each rule.
 
 ## Which PRs
@@ -51,8 +51,8 @@ those skills stay the reference for each rule.
      staging's version and bumping it at the level the feature commit bumped;
    - opens or reuses the staging PR, titled `<feature PR title> (staging)`,
      with a body that starts "Staging counterpart of #N";
-   - posts one `/run-tests` on each PR that was created or whose branch the
-     push updated, then switches back to the feature branch.
+   - posts one `/run-tests` and one `/check-security` on each PR that was
+     created or whose branch the push updated, then switches back to the feature branch.
 
    Rerunning it is safe.
 4. **Watch CI in the background.** Start the `Watch CI:` command the script
@@ -92,7 +92,7 @@ those skills stay the reference for each rule.
 
 Report both PR URLs, the staging branch (and whether a new `-N` branch was
 created because the previous one was stale), any version conflict it resolved,
-where `/run-tests` was posted, the CI result once the watcher finishes, and
+where `/run-tests` and `/check-security` were posted, the CI result once the watcher finishes, and
 what was merged (or `NOT MERGED` and why). Then add the handoff.
 
 ## Handoff

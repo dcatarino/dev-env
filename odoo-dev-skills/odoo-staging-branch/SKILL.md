@@ -1,7 +1,7 @@
 ---
 name: odoo-staging-branch
 description: This skill should be used when the user explicitly asks to create and commit on an Odoo staging branch — e.g. "commit the changes, ticket-XXXX, and create and commit on a staging branch". Covers determining the Odoo version, the staging branch naming convention, branching from the matching upstream staging branch, detecting when a local staging branch has gone stale (because the upstream staging branch advanced) and creating an incremented -N branch, cherry-picking the feature-branch commit onto it (including repeated iterations) and resolving its manifest-version conflict, opening the staging PR, and checking a submodule-pointer bump before making it.
-version: 1.2.0
+version: 1.2.1
 ---
 
 # Odoo staging branch workflow
@@ -121,23 +121,25 @@ git push -u origin <staging_branch>
 
 After an authorized push that succeeds and updates the remote staging branch,
 in a `360ERP/*` repository, locate an open PR for that branch and post exactly
-one fresh `/run-tests` comment for the push action:
+one fresh `/run-tests` comment and one fresh `/check-security` comment for the
+push action:
 
 ```bash
 pr_number="$(gh pr list --head "$(git branch --show-current)" --state open --json number --jq '.[0].number')"
 if [ -n "$pr_number" ]; then
   gh pr comment "$pr_number" --body "/run-tests"
+  gh pr comment "$pr_number" --body "/check-security"
 fi
 ```
 
-Do nothing when there is no open PR. A `/run-tests` comment for an earlier
-commit does not count after a later remote-updating push; personal repositories
+Do nothing when there is no open PR. A `/run-tests` or `/check-security`
+comment for an earlier commit does not count after a later remote-updating push; personal repositories
 never receive this comment.
 
 Otherwise leave pushing to the user.
 
 When the user asked for the staging PR, open it after the push, then post one
-`/run-tests` on it:
+`/run-tests` and one `/check-security` on it:
 
 ```bash
 gh pr create --base <odoo_version>-staging --head <staging_branch> \

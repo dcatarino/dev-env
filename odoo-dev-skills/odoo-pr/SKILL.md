@@ -1,7 +1,7 @@
 ---
 name: odoo-pr
-description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with a /run-tests comment, and the GitHub auth model (org token vs personal repos).
-version: 1.1.1
+description: This skill should be used when the user asks to push a branch or open/update a GitHub pull request for an Odoo/360ERP repository — e.g. "open a PR", "create a PR against 18.0", or a PR request following a commit. Covers using the gh CLI, the target branch, the PR title convention, triggering CI with /run-tests and /check-security comments, and the GitHub auth model (org token vs personal repos).
+version: 1.1.2
 ---
 
 # Open a pull request
@@ -10,7 +10,7 @@ Use this only when the user **explicitly asks** to push or open a pull request.
 Never push or open PRs on your own initiative.
 
 In 360ERP repos, the `odoo-ship` skill's script runs the push, PR and
-`/run-tests` steps below (and the staging pair) in one go; this skill stays the
+`/run-tests` and `/check-security` steps below (and the staging pair) in one go; this skill stays the
 reference and covers personal repos.
 
 ## Prerequisites
@@ -39,12 +39,14 @@ gh pr create --base <version> \
   `gh pr view <pr_number> --json body --jq .body`; a scratchpad copy may be
   gone.
 
-Immediately after creating the PR, post one fresh `/run-tests` comment. The
+Immediately after creating the PR, post one fresh `/run-tests` comment and one
+fresh `/check-security` comment. The
 initial push may have had no PR yet, so do not comment before creation and then
 again after it; comment once after the PR exists:
 
 ```bash
 gh pr comment <pr_number> --body "/run-tests"
+gh pr comment <pr_number> --body "/check-security"
 ```
 
 `/run-tests` dispatches the `test.yml` workflow on the PR's head branch, so the
@@ -55,26 +57,28 @@ run never shows up in `gh pr checks`. Watch it as a background task with
 
 After every explicitly authorized `git push` that succeeds **and updates the
 remote branch**, locate an open PR for the current branch. If one exists, post
-exactly one fresh `/run-tests` comment for that push action:
+exactly one fresh `/run-tests` comment and one fresh `/check-security` comment
+for that push action:
 
 ```bash
 pr_number="$(gh pr list --head "$(git branch --show-current)" --state open --json number --jq '.[0].number')"
 if [ -n "$pr_number" ]; then
   gh pr comment "$pr_number" --body "/run-tests"
+  gh pr comment "$pr_number" --body "/check-security"
 fi
 ```
 
 - Do nothing when the branch has no open PR.
 - If the push is followed by PR creation, post the single comment immediately
   after creating the PR instead of commenting twice for the same push action.
-- A `/run-tests` comment for an earlier commit never satisfies this rule for a
-  later remote-updating push.
+- A `/run-tests` or `/check-security` comment for an earlier commit never
+  satisfies this rule for a later remote-updating push.
 
 ## Create the PR — personal repos (e.g. `dcatarino/*`)
 
 PRs target `main`, use a plain descriptive title (no `[task-XXXX]` prefix,
-no task identifier needed), and there is no `/run-tests` pipeline — skip the
-CI comment, including after pushes. See the auth notes below for pushing.
+no task identifier needed), and there is no `/run-tests` or `/check-security` pipeline — skip the
+CI comments, including after pushes. See the auth notes below for pushing.
 
 ## Auth model
 
@@ -100,4 +104,4 @@ CI comment, including after pushes. See the auth notes below for pushing.
 
 ## After finishing
 
-Report: the branch pushed, the PR URL, and whether `/run-tests` was commented.
+Report: the branch pushed, the PR URL, and whether `/run-tests` and `/check-security` were commented.

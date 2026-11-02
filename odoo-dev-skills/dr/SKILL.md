@@ -27,7 +27,7 @@ that flow. Anything else the user writes after the arguments overrides them.
 - Invoking `/dr` is the explicit request the `development-request` live-data
   gate asks for: read that record, its ticket or task, its chatter and its
   customer environment through the 360 ERP Odoo MCP. Nothing else in 360.
-- `ship` is the explicit request for commit, push, both PRs and `/run-tests`.
+- `ship` is the explicit request for commit, push, both PRs, `/run-tests` and `/check-security`.
   `merge` is the explicit "squash merge when CI passes" for exactly those PRs.
   A merge to `<version>-staging` deploys staging; say so when it happens.
 - Never, whatever the form: write to 360 (chatter, stage, timesheets), merge

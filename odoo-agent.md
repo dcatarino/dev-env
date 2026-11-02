@@ -39,9 +39,10 @@ requested scope, and do not refactor or change unrelated modules.
   live Odoo data — e.g. "retrieve my tickets from 360" or "look up this record
   in Odoo". When in doubt, do the work without the MCP.
 - After every explicitly authorized push that successfully updates a remote
-  branch in a `360ERP/*` repository, post one fresh `/run-tests` comment if
-  that branch has an open PR. Also post it immediately after creating a PR.
-  An older `/run-tests` comment never counts for a newly pushed commit;
+  branch in a `360ERP/*` repository, post one fresh `/run-tests` comment and
+  one fresh `/check-security` comment if that branch has an open PR. Also post
+  them immediately after creating a PR. An older `/run-tests` or
+  `/check-security` comment never counts for a newly pushed commit;
   personal repositories do not receive this comment.
 
 ## Gated actions

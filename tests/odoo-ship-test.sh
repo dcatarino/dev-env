@@ -79,9 +79,25 @@ case $cmd in
   "pr comment") printf '%s %s\n' "${args[0]}" "${args[2]}" >>"$state/comments.log" ;;
   "pr checks") echo "checks for ${args[0]}"; exit "$(cat "$state/checks-exit" 2>/dev/null || echo 0)" ;;
   "pr merge") printf '%s %s\n' "${args[0]}" "${args[1]}" >>"$state/merges.log" ;;
-  "run list") printf '%s\n' "$(<"$state/run-id")" ;;
+  "run list")
+    # run-ids, when present, is consumed one line per call (the last one stays).
+    if [[ -s "$state/run-ids" ]]; then
+      head -n 1 "$state/run-ids"
+      if (($(wc -l <"$state/run-ids") > 1)); then
+        tail -n +2 "$state/run-ids" >"$state/run-ids.tmp" && mv "$state/run-ids.tmp" "$state/run-ids"
+      fi
+    else
+      printf '%s\n' "$(<"$state/run-id")"
+    fi
+    ;;
   "run view")
-    if [[ " ${args[*]} " == *" --log-failed "* ]]; then echo "failed step log"; else echo "https://example.test/run"; fi
+    if [[ " ${args[*]} " == *" --log-failed "* ]]; then
+      echo "failed step log"
+    elif [[ " ${args[*]} " == *" status,conclusion "* ]]; then
+      cat "$state/run-result-${args[0]}" 2>/dev/null || cat "$state/run-result"
+    else
+      echo "https://example.test/run/${args[0]}"
+    fi
     ;;
   "run watch") exit "$(<"$state/run-exit")" ;;
   *) echo "fake gh: unsupported: $cmd" >&2; exit 1 ;;
@@ -309,15 +325,40 @@ out=$(ship --no-staging 2>&1) || fail "--no-staging ship failed: $out"
   || fail '--no-staging created a staging branch.'
 
 # 8. watch_ci.sh reports the dispatched run's result.
-watch() { PATH="$work/bin:$PATH" FAKE_GH_STATE="$state" bash "$watch_sh" "$@"; }
+watch() {
+  PATH="$work/bin:$PATH" FAKE_GH_STATE="$state" WATCH_CI_RETRY_SECONDS=0 bash "$watch_sh" "$@"
+}
 printf '123\n' >"$state/run-id"
 printf '0\n' >"$state/run-exit"
+printf 'completed success\n' >"$state/run-result"
 out=$(watch 18.0-request-1) || fail "watch_ci.sh failed on a passing run: $out"
 grep -q '^PASS  18.0-request-1' <<<"$out" || fail "No PASS line: $out"
-printf '1\n' >"$state/run-exit"
+printf 'completed failure\n' >"$state/run-result"
 if out=$(watch 18.0-request-1); then fail 'watch_ci.sh succeeded on a failing run.'; fi
 grep -q '^FAIL  18.0-request-1' <<<"$out" || fail "No FAIL line: $out"
 grep -q 'failed step log' <<<"$out" || fail 'The failed log was not shown.'
+
+# 8b. The result comes from the run, not from `gh run watch`'s exit code: a
+# watch that broke off (network, rate limit) on a passing run is still PASS.
+printf '1\n' >"$state/run-exit"
+printf 'completed success\n' >"$state/run-result"
+out=$(watch 18.0-request-1) || fail "A broken-off watch of a passing run was reported as failed: $out"
+grep -q '^PASS  18.0-request-1' <<<"$out" || fail "No PASS line after a broken-off watch: $out"
+printf '0\n' >"$state/run-exit"
+
+# 8c. A cancelled run is CANCELLED, not FAIL; one replaced by a newer run is
+# followed to that run.
+printf 'completed cancelled\n' >"$state/run-result"
+if out=$(watch 18.0-request-1); then fail 'watch_ci.sh succeeded on a cancelled run.'; fi
+grep -q '^CANCELLED  18.0-request-1' <<<"$out" || fail "No CANCELLED line: $out"
+grep -q '^FAIL' <<<"$out" && fail "A cancelled run was reported as FAIL: $out"
+printf '123\n456\n' >"$state/run-ids"
+printf 'completed cancelled\n' >"$state/run-result-123"
+printf 'completed success\n' >"$state/run-result-456"
+out=$(watch 18.0-request-1) || fail "watch_ci.sh did not follow the run that replaced a cancelled one: $out"
+grep -q '^PASS  18.0-request-1  https://example.test/run/456' <<<"$out" || fail "No PASS for the newer run: $out"
+rm -f "$state/run-ids" "$state/run-result-123" "$state/run-result-456"
+printf 'completed failure\n' >"$state/run-result"
 
 # 9. watch_ci.sh --merge squash-merges every PR only when everything passed.
 merges() { wc -l <"$state/merges.log" | tr -d ' '; }
@@ -325,7 +366,7 @@ merges() { wc -l <"$state/merges.log" | tr -d ' '; }
 if out=$(watch --merge 18.0-task-7); then fail 'watch_ci.sh --merge succeeded on a failing run.'; fi
 grep -q '^NOT MERGED' <<<"$out" || fail "No NOT MERGED line: $out"
 [[ $(merges) == 0 ]] || fail 'Merged after a failing test run.'
-printf '0\n' >"$state/run-exit"
+printf 'completed success\n' >"$state/run-result"
 printf '1\n' >"$state/checks-exit"
 if out=$(watch --merge 18.0-task-7); then fail 'watch_ci.sh --merge succeeded on failing PR checks.'; fi
 grep -q '^NOT MERGED: checks failed' <<<"$out" || fail "No failed-checks line: $out"
@@ -346,5 +387,28 @@ out=$(ship --no-staging --merge 2>&1) || fail "ship --merge failed: $out"
 grep -q 'watch_ci.sh --since [^ ]* --merge 18.0-task-8$' <<<"$out" \
   || fail "The watcher line lacks --merge: $out"
 [[ $(merges) == 1 ]] || fail 'ship.sh merged by itself.'
+
+# 11. --merge-staging: the watcher merges the staging PR only, and ship.sh
+# hands the flag over only when a staging branch is watched.
+git -C "$repo" checkout -q -b 18.0-request-9 origin/18.0
+printf 'line nine\n' >>"$repo/custom/mod_a/models.py"
+git -C "$repo" commit -q -am "[request-9] mod_a:" -m "Staging first"
+out=$(ship --merge-staging 2>&1) || fail "ship --merge-staging failed: $out"
+grep -q 'watch_ci.sh --since [^ ]* --merge-staging 18.0-request-9 18.0-staging-request-9$' <<<"$out" \
+  || fail "The watcher line lacks --merge-staging: $out"
+: >"$state/merges.log"
+out=$(watch --merge-staging 18.0-request-9 18.0-staging-request-9) \
+  || fail "watch_ci.sh --merge-staging failed on passing runs: $out"
+[[ $(merges) == 1 ]] || fail "--merge-staging merged $(merges) PRs, expected 1."
+staging_pr=$(<"$state/prs/18.0-staging..18.0-staging-request-9")
+grep -qx "$staging_pr --squash" "$state/merges.log" || fail "--merge-staging merged the wrong PR: $(cat "$state/merges.log")"
+grep -q '^LEFT OPEN  18.0-request-9' <<<"$out" || fail "No LEFT OPEN line for the feature PR: $out"
+if out=$(watch --merge-staging 18.0-task-7); then fail 'watch_ci.sh --merge-staging succeeded without a staging branch.'; fi
+grep -q '^NOT MERGED: no staging branch' <<<"$out" || fail "No missing-staging line: $out"
+git -C "$repo" checkout -q -b 18.0-task-10 origin/18.0
+printf 'line ten\n' >>"$repo/custom/mod_a/models.py"
+git -C "$repo" commit -q -am "[task-10] mod_a:" -m "No staging"
+out=$(ship --no-staging --merge-staging 2>&1) || fail "ship --no-staging --merge-staging failed: $out"
+grep -q -- '--merge' <<<"$out" && fail "--no-staging kept a merge flag: $out"
 
 printf 'odoo-ship tests passed.\n'

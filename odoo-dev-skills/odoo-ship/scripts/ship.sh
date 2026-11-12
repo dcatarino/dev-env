@@ -17,7 +17,8 @@ lib="$script_dir/ship_lib.py"
 
 usage() {
   cat <<'EOF'
-Usage: ship.sh [--body-file FILE] [--title TEXT] [--no-staging] [--merge] [--dry-run]
+Usage: ship.sh [--body-file FILE] [--title TEXT] [--no-staging]
+               [--merge | --merge-staging] [--dry-run]
 
 Run inside a 360ERP repository with the change committed on its feature
 branch (e.g. 18.0-request-1234). The identifier comes from the latest commit.
@@ -28,6 +29,9 @@ branch (e.g. 18.0-request-1234). The identifier comes from the latest commit.
   --no-staging      Only the feature PR (e.g. 360_integrations)
   --merge           Print the watcher with --merge: it squash-merges the PRs
                     once CI passed. Only when the user asked for the merge.
+  --merge-staging   Print the watcher with --merge-staging: it squash-merges
+                    only the staging PR once CI passed; the feature PR stays
+                    open. Ignored with --no-staging.
   --dry-run         Print the plan; push, create, and comment nothing
 EOF
 }
@@ -48,6 +52,7 @@ while (($#)); do
     --title) title=${2:?--title needs text}; shift 2 ;;
     --no-staging) no_staging=1; shift ;;
     --merge) merge=1; shift ;;
+    --merge-staging) merge=2; shift ;;
     --dry-run) dry_run=1; shift ;;
     -h | --help) usage; exit 0 ;;
     *) usage >&2; exit 64 ;;
@@ -320,7 +325,11 @@ if ((!no_staging)); then
 fi
 if ((${#watch[@]})); then
   merge_flag=""
-  ((!merge)) || merge_flag=" --merge"
+  ((merge != 1)) || merge_flag=" --merge"
+  # Only when a staging branch is among the watched ones.
+  if ((merge == 2 && !no_staging)) && [[ " ${watch[*]} " == *" $version-staging-"* ]]; then
+    merge_flag=" --merge-staging"
+  fi
   printf 'Watch CI:    bash %s/watch_ci.sh --since %s%s %s\n' "$script_dir" "$started" \
     "$merge_flag" "${watch[*]}"
 fi

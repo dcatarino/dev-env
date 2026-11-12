@@ -296,15 +296,18 @@ tokens, and personal contact details must never be written there — see
 - `odoo-agent.md` — shared Odoo instructions installed for Claude and Codex.
 - `<category>/<skill-name>/SKILL.md` — reusable agent skills.
 
-Current skills (`odoo-dev-skills/`): `dr`, `development-request`, `odoo-commit`,
+Current skills (`odoo-dev-skills/`): `dr`, `development-request`, `followup`, `odoo-commit`,
 `odoo-staging-branch`, `odoo-pr`, `odoo-ship`, `odoo-integrations`,
 `run-odoo-tests`, `test-odoo-ui`. `development-request` produces
 evidence-backed implementation plans with confirmed ownership, observable
 slices, and explicitly gated test execution. `odoo-ship` ships a committed
 change to `<version>` and `<version>-staging` in one script run (PRs, staging
 cherry-pick with the manifest-version conflict resolved, `/run-tests`, `/check-security`) and
-watches the CI run in the background; with `--merge` it squash-merges the PRs
-once everything passed, and it ends with a consultant handoff. `dr`
+watches the CI run in the background; with `--merge-staging` (the default for a
+customer repository) it squash-merges the staging PR once everything passed,
+with `--merge` both PRs, and it ends with a consultant handoff. `followup`
+writes one short message to a customer, consultant or colleague about a ticket
+and saves it in the ticket's notes folder. `dr`
 (`/dr <id> [plan|ship] [merge]`) runs the whole development-request loop on top
 of them: read the request, work in its own 360-work task worktree on
 `<version>-request-<id>`, implement, test, ship, hand off, and report its

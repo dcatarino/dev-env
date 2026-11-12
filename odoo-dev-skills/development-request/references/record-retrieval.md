@@ -1,6 +1,6 @@
 # Retrieving the record and its environment
 
-Read this only after explicit live-data authorization (see `SKILL.md`). If the
+Reading is always allowed and read-only (see `SKILL.md`). If the
 connected MCP is unavailable or unauthenticated, report that exact blocker and
 continue from supplied context and repository evidence when possible.
 

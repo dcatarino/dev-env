@@ -1,7 +1,7 @@
 ---
 name: dr
-description: This skill should be used when the user invokes /dr with a 360ERP development request ID or URL, optionally followed by plan, ship or merge — e.g. "/dr 2171", "/dr 2171 plan", "/dr 2171 ship", "/dr https://www.360erp.com/odoo/action-2929/2171 ship merge". It runs the whole ticket loop in one go — read the request and its chatter, work in the request's own task worktree on a `<version>-request-<id>` branch, implement, test, and with ship commit, open the `<version>` and `<version>-staging` PRs and end with the consultant handoff — reporting its progress as a lane the chief agent can see.
-version: 1.0.0
+description: This skill should be used when the user invokes /dr with a 360ERP development request ID or URL, optionally followed by plan, ship or merge — e.g. "/dr 2171", "/dr 2171 plan", "/dr 2171 ship", "/dr https://www.360erp.com/odoo/action-2929/2171 ship merge". It runs the whole ticket loop in one go — read the request and its chatter, work in the request's own task worktree on a `<version>-request-<id>` branch, implement, test, and with ship commit, open the `<version>` and `<version>-staging` PRs, merge the staging one when CI passed and end with the consultant handoff — reporting its progress as a lane the chief agent can see.
+version: 1.1.0
 ---
 
 # `/dr` — one development request, start to finish
@@ -21,14 +21,15 @@ that flow. Anything else the user writes after the arguments overrides them.
 | --- | --- | --- |
 | `/dr 2171` | read, plan, implement, test | tested change, uncommitted; asks "ship?" |
 | `/dr 2171 plan` | read, plan | the plan |
-| `/dr 2171 ship` | the above, then commit and `odoo-ship` to `<version>` and `<version>-staging` | PRs open, CI watched |
+| `/dr 2171 ship` | the above, then commit and `odoo-ship --merge-staging` to `<version>` and `<version>-staging` | staging PR squash-merged once CI passed, `<version>` PR open |
 | `/dr 2171 ship merge` | the above, then `odoo-ship --merge` | both PRs squash-merged once CI passed |
 
 - Invoking `/dr` is the explicit request the `development-request` live-data
   gate asks for: read that record, its ticket or task, its chatter and its
   customer environment through the 360 ERP Odoo MCP. Nothing else in 360.
-- `ship` is the explicit request for commit, push, both PRs, `/run-tests` and `/check-security`.
-  `merge` is the explicit "squash merge when CI passes" for exactly those PRs.
+- `ship` is the explicit request for commit, push, both PRs, `/run-tests`,
+  `/check-security` and the squash-merge of the staging PR once CI passed
+  ("ship, don't merge" leaves it open). `merge` adds the `<version>` PR.
   A merge to `<version>-staging` deploys staging; say so when it happens.
 - Never, whatever the form: write to 360 (chatter, stage, timesheets), merge
   anything you did not ship in this run, or touch production — deploys, module
@@ -85,14 +86,17 @@ Elsewhere (a Codespace) skip this step; it is never a reason to stop.
    of the changed modules with `run-odoo-tests`. Browser checks follow
    `test-odoo-ui` when the change is visible in the UI.
 6. **Ship** (only with `ship`). Commit with `odoo-commit`, then ship each
-   changed repository with `odoo-ship` (`--merge` with `merge`;
-   `360_integrations` stays `18.0` only, as that skill says). Start its CI
-   watcher in the background and set `watching`.
-7. **Write the progress note.** In the task folder, write `context/dr.md`:
-   the request in two lines, decisions and assumptions with who made them,
-   branches, PR URLs, test results, open questions, next step. A new session
-   in any harness or account resumes from this file, so keep it current at
-   each stop.
+   changed repository with `odoo-ship` (`--merge-staging`, or `--merge` with
+   `merge`; `360_integrations` stays `18.0` only, as that skill says). Start
+   its CI watcher in the background and set `watching`.
+7. **Write the progress note.** Keep the request's `brief.md` current (see
+   "Ticket notes" in the agent instructions; `360-work ticket request-<id>`
+   creates the folder and prints its path): the request in two lines,
+   decisions and assumptions with who made them, branches, PR URLs, test
+   results, open questions, next step. Where there is no ticket-notes folder
+   (a Codespace, an older 360-work), write the same to `context/dr.md` in the
+   task folder. A new session in any harness or account resumes from this
+   file, so update it at each stop.
 8. **Report and hand off.** Set the final lane state with the PR URLs. Lead
    with the result: PR URLs (or "tested, not shipped — `ship` to open the
    PRs"), what was run and its result, anything not verified. Then the
@@ -109,5 +113,5 @@ Elsewhere (a Codespace) skip this step; it is never a reason to stop.
 - **Shipping from `work/<task>`.** Task worktrees start on `work/<name>`;
   create `<version>-request-<id>` before the first commit or `odoo-ship`
   cannot read the version.
-- **Losing state on compaction or a limit.** Update `context/dr.md` before a
-  long step, not only at the end.
+- **Losing state on compaction or a limit.** Update the progress note before
+  a long step, not only at the end.

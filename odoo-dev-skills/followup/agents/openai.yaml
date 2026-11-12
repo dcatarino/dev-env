@@ -1,0 +1,7 @@
+interface:
+  display_name: "Follow-up message"
+  short_description: "Write one short message to a customer, consultant or colleague about a ticket"
+  default_prompt: "Use $followup to write a message for the <customer | consultant | colleague> about <ticket, task or request ID>."
+
+policy:
+  allow_implicit_invocation: true

@@ -46,6 +46,13 @@ For `helpdesk.development.request`, read at least:
 - `state`, `priority`, `message_ids`;
 - `create_date`, `write_date`.
 
+Also useful when present: `poc_user_id` (the consultant), `user_id` (the
+developer), `estimated_hours`, `github_branch_name`, `pull_request_url`,
+`customer_environment_name`.
+
+This model has no `description` and no `stage_id`: the text is
+`dev_description` and the status is `state`.
+
 A development request can relate to a ticket, a task, or both. Follow every
 direct relation that can materially affect the current requirement.
 
@@ -88,7 +95,14 @@ then read safe structured values such as:
 
 Do not read credential fields, API-key relations, database identifiers, or
 infrastructure command history. Do not dump large installed-module ID lists;
-resolve only modules relevant to the feature.
+resolve only modules relevant to the feature: search
+`customer.environment.installed.module.line` with the domain
+`[["environment_id", "=", <environment id>], ["module_id.name", "ilike", "<keyword>"]]`
+and the fields `module_id`, `content_folder`, `module_author`, `version`. The
+link field on that model is `environment_id`, not `customer_environment_id`.
+
+`ir.attachment`, `ir.model` and `mail.tracking.value` are not readable through
+this connection. Do not retry them; say what could not be read.
 
 Use the structured environment record to establish the Odoo major version,
 repository, branch context, and hosting type. Do not assume Odoo 18 merely

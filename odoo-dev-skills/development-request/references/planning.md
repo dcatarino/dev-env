@@ -1,7 +1,7 @@
 # Evidence-first implementation plans
 
-Use this format for planning-only requests. Inspect the supplied context and any
-authorized local repository before writing the plan. Do not retrieve live data,
+Use this format for planning-only requests. Read the record and inspect the
+supplied context and the local repository before writing the plan. Do not
 edit code, run tests, publish a ticket, commit, push, open a pull request,
 deploy, or write to an external system merely to produce a plan.
 

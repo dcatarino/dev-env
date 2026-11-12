@@ -1,6 +1,6 @@
 # Reconstructing chatter, and handling privacy and attachments
 
-Read this only after explicit live-data authorization (see `SKILL.md`).
+Reading the chatter is always allowed and read-only (see `SKILL.md`).
 
 ## Reconstruct the complete chatter
 

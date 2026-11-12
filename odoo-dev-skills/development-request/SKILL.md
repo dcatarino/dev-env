@@ -1,15 +1,15 @@
 ---
 name: development-request
-description: This skill should be used when the user invokes /development-request, explicitly asks to retrieve a live 360ERP Odoo development request, helpdesk ticket, or project task, or asks to analyse, plan, implement, test, or review one from supplied context. It gates the connected 360 ERP Odoo MCP behind explicit live-data authorization.
-version: 1.4.0
+description: This skill should be used when the user invokes /development-request, names a 360ERP Odoo development request, helpdesk ticket, or project task by ID or URL, or asks to analyse, plan, implement, test, or review one. It reads the record, its chatter and its customer environment through the connected 360 ERP Odoo MCP, read-only.
+version: 1.5.0
 ---
 
 # Analyse and implement a development request
 
-When live-data access is explicitly authorized, use the connected 360 ERP Odoo
-MCP as the primary source for development requests, related helpdesk tickets or
-project tasks, chatter, attachments, and customer-environment metadata. Otherwise,
-work from supplied context and the local repository. Reconstruct what the client
+Use the connected 360 ERP Odoo MCP as the primary source for development
+requests, related helpdesk tickets or project tasks, chatter, attachments, and
+customer-environment metadata. Where it is not connected, work from supplied
+context and the local repository. Reconstruct what the client
 currently needs before inspecting or changing code.
 
 The goal is the smallest maintainable solution that fully addresses the confirmed
@@ -31,21 +31,19 @@ Use this skill for:
 Do not use this workflow for generic Odoo questions with no company record or
 repository context.
 
-## Live-data gate
+## Live data: read freely, never write
 
-Loading this skill automatically does **not** authorize an MCP call. Read live 360
-ERP data only when the user explicitly requests it, for example by:
+Reading 360 ERP through the MCP is always allowed; do not ask for permission.
+When the user names a record by ID or URL, or the work is about one (the
+task's `request-<id>`, the ticket in `brief.md`), read it, its chatter and its
+customer environment before analysing or changing code. Pasted record content
+is a starting point, not a reason to skip the newer chatter.
 
-- invoking `/development-request <record-ID-or-URL>`;
-- asking to retrieve, look up, open, or read a named record in 360 ERP.
+Keep reads to what the work needs: technical fields, no contact details, no
+credential fields, no bulk dumps (see the references below).
 
-Merely mentioning a development request, asking for Odoo development work, or
-pasting already-retrieved record content is not authorization. Work from the
-supplied context and repository; when live data is materially required, ask one
-clear permission question before calling the MCP.
-
-Explicit live-data authorization permits **read-only investigation**. It is not
-authorization to modify Odoo records or any other external system.
+Reading is **read-only investigation**. It is never authorization to modify
+Odoo records or any other external system.
 
 ## Safety and scope
 
@@ -79,10 +77,10 @@ A newer message supersedes an older requirement only when they discuss the same
 point. When relevant sources conflict, report the conflict and identify what must
 be confirmed. Never silently select the easiest interpretation.
 
-## Retrieve the record (only once authorized)
+## Retrieve the record
 
-Read these references when the live-data gate above is satisfied — they hold the
-MCP procedures, the per-model field lists, and the privacy rules:
+These references hold the MCP procedures, the per-model field lists, and the
+privacy rules:
 
 - `references/record-retrieval.md` — resolving the record from an ID or URL,
   reading it and its direct relations, and resolving the customer environment
@@ -192,8 +190,8 @@ Follow `references/output-modes.md` for the three report shapes — analysis onl
 implementation plan, and implementation or fix.
 
 For a planning-only request, read `references/planning.md` and use its
-evidence-first implementation-plan schema. Planning authorizes neither live-data
-retrieval nor any gated action, including code edits and test execution.
+evidence-first implementation-plan schema. Planning authorizes no gated action,
+including code edits and test execution; reading the record is part of planning.
 
 ## Gotchas specific to this data
 

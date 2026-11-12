@@ -24,9 +24,9 @@ that flow. Anything else the user writes after the arguments overrides them.
 | `/dr 2171 ship` | the above, then commit and `odoo-ship --merge-staging` to `<version>` and `<version>-staging` | staging PR squash-merged once CI passed, `<version>` PR open |
 | `/dr 2171 ship merge` | the above, then `odoo-ship --merge` | both PRs squash-merged once CI passed |
 
-- Invoking `/dr` is the explicit request the `development-request` live-data
-  gate asks for: read that record, its ticket or task, its chatter and its
-  customer environment through the 360 ERP Odoo MCP. Nothing else in 360.
+- Read the record, its ticket or task, its chatter and its customer
+  environment through the 360 ERP Odoo MCP, as `development-request`
+  describes. Reading 360 never needs a separate request.
 - `ship` is the explicit request for commit, push, both PRs, `/run-tests`,
   `/check-security` and the squash-merge of the staging PR once CI passed
   ("ship, don't merge" leaves it open). `merge` adds the `<version>` PR.

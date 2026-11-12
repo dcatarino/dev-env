@@ -38,13 +38,13 @@ requested scope, and do not refactor or change unrelated modules.
   nexus secrets abstraction — see `odoo-integrations`).
 - Never probe git credential helpers, git config, or the environment for
   tokens. For push/PR auth, follow the `odoo-pr` skill.
-- Do not initiate a connection to the 360 ERP Odoo MCP, list, discover, or
-  inspect its tools, or call it unless the user explicitly asks for live 360
-  ERP Odoo data. This governs model-initiated behavior; it cannot prevent
-  host-level connector registration or startup. Development work is not by
-  itself a reason to use it. Only reach for it when the user clearly requests
-  live Odoo data — e.g. "retrieve my tickets from 360" or "look up this record
-  in Odoo". When in doubt, do the work without the MCP.
+- 360 ERP Odoo MCP: reading is always allowed, without asking. Read the
+  ticket, task or development request you are working on, its chatter, its
+  customer environment and 360's knowledge base whenever it helps the work.
+  Read what the work needs: technical fields, no contact details (e-mail,
+  phone, address), no credential or API-key fields, no bulk dumps. Writing is
+  the opposite: never write to 360 (chatter, notes, stages, timesheets, new
+  records) unless the user said yes to that exact change.
 - After every explicitly authorized push that successfully updates a remote
   branch in a `360ERP/*` repository, post one fresh `/run-tests /check-security`
   comment if that branch has an open PR. Also post it immediately after
@@ -108,10 +108,10 @@ tell a customer, or for a message, estimate, mapping or test guide.
   automation rules, earlier tickets and development requests, Odoo
   documentation, an hours estimate from comparable past work, and a
   development-request draft in 360's format. `360-housestyle` with the PDF,
-  Word or Excel skill styles a file that goes to a customer. They read live
-  360 data, so the live-data rule under Guardrails applies: use them when the
-  user asked for that record or customer, and otherwise name the skill as the
-  next step. They never write code: build with `/dr` and the skills above.
+  Word or Excel skill styles a file that goes to a customer. Use them without
+  asking when the question is theirs to answer; `360-brain` can also create a
+  record or post a note in 360, and that still needs the user's yes each
+  time. They never write code: build with `/dr` and the skills above.
   Where they are missing (second account, Codex, Hermes), do the same reading
   with `development-request` and the repositories.
 - **Messages** to a customer, consultant or colleague follow the `followup`
